@@ -1,0 +1,330 @@
+{
+  "info": {
+    "name": "Zauro Backend API",
+    "_postman_id": "8f0b1c8e-1e4a-4c8c-9c2e-000000000001",
+    "description": "Postman collection for Zauro Backend. Set {{baseUrl}} and {{authToken}} (Bearer) where required.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "authToken", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Root",
+      "item": [
+        {
+          "name": "GET /",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "POST /auth/register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"phone\": \"+10000000000\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "POST /auth/login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "POST /auth/refresh (Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+          }
+        },
+        {
+          "name": "POST /auth/forgot-password/request",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"phone\": \"+10000000000\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password/request", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password", "request"] }
+          }
+        },
+        {
+          "name": "POST /auth/forgot-password/verify",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\",\n  \"email\": \"user@example.com\",\n  \"phone\": \"+10000000000\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password/verify", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password", "verify"] }
+          }
+        },
+        {
+          "name": "POST /auth/forgot-password/reset",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\",\n  \"newPassword\": \"NewPassword123!\",\n  \"email\": \"user@example.com\",\n  \"phone\": \"+10000000000\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password/reset", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password", "reset"] }
+          }
+        },
+        {
+          "name": "GET /auth/profile (Bearer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/profile", "host": ["{{baseUrl}}"], "path": ["auth", "profile"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Animals",
+      "item": [
+        {
+          "name": "POST /animals (multipart, Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Bella", "type": "text" },
+                { "key": "species", "value": "DOG", "type": "text" },
+                { "key": "breed", "value": "Labrador", "type": "text" },
+                { "key": "age", "value": "3", "type": "text" },
+                { "key": "description", "value": "Friendly dog", "type": "text" },
+                { "key": "aiPredictionValue", "value": "100", "type": "text" },
+                { "key": "image", "src": [], "type": "file" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/animals", "host": ["{{baseUrl}}"], "path": ["animals"] }
+          }
+        },
+        {
+          "name": "GET /animals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/animals?page=1&limit=10&ownerId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["animals"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "ownerId", "value": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /animals/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/animals/:id", "host": ["{{baseUrl}}"], "path": ["animals", ":id"] }
+          }
+        },
+        {
+          "name": "PATCH /animals/:id (Bearer)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bella\",\n  \"breed\": \"Labrador\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/animals/:id", "host": ["{{baseUrl}}"], "path": ["animals", ":id"] }
+          }
+        },
+        {
+          "name": "DELETE /animals/:id (Bearer)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/animals/:id", "host": ["{{baseUrl}}"], "path": ["animals", ":id"] }
+          }
+        },
+        {
+          "name": "POST /animals/:id/upload-image (multipart, Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "src": [], "type": "file" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/animals/:id/upload-image", "host": ["{{baseUrl}}"], "path": ["animals", ":id", "upload-image"] }
+          }
+        },
+        {
+          "name": "POST /animals/:id/upload-vet-record (multipart, Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "vetRecord", "src": [], "type": "file" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/animals/:id/upload-vet-record", "host": ["{{baseUrl}}"], "path": ["animals", ":id", "upload-vet-record"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trades",
+      "item": [
+        {
+          "name": "POST /trades/list (Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"animalId\": \"<animal-id>\",\n  \"price\": 100,\n  \"currency\": \"HBAR\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/trades/list", "host": ["{{baseUrl}}"], "path": ["trades", "list"] }
+          }
+        },
+        {
+          "name": "GET /trades",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trades?page=1&limit=10&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["trades"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /trades/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/trades/:id", "host": ["{{baseUrl}}"], "path": ["trades", ":id"] }
+          }
+        },
+        {
+          "name": "POST /trades/buy/:id (Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/trades/buy/:id", "host": ["{{baseUrl}}"], "path": ["trades", "buy", ":id"] }
+          }
+        },
+        {
+          "name": "POST /trades/execute/:id (Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/trades/execute/:id", "host": ["{{baseUrl}}"], "path": ["trades", "execute", ":id"] }
+          }
+        },
+        {
+          "name": "POST /trades/cancel/:id (Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/trades/cancel/:id", "host": ["{{baseUrl}}"], "path": ["trades", "cancel", ":id"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallets (Bearer)",
+      "item": [
+        {
+          "name": "POST /wallets/create",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/wallets/create", "host": ["{{baseUrl}}"], "path": ["wallets", "create"] }
+          }
+        },
+        {
+          "name": "GET /wallets/my-wallet",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/wallets/my-wallet", "host": ["{{baseUrl}}"], "path": ["wallets", "my-wallet"] }
+          }
+        },
+        {
+          "name": "GET /wallets/my-wallet/balance",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/wallets/my-wallet/balance", "host": ["{{baseUrl}}"], "path": ["wallets", "my-wallet", "balance"] }
+          }
+        },
+        {
+          "name": "GET /wallets/:id",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/wallets/:id", "host": ["{{baseUrl}}"], "path": ["wallets", ":id"] }
+          }
+        },
+        {
+          "name": "GET /wallets/:id/balance",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/wallets/:id/balance", "host": ["{{baseUrl}}"], "path": ["wallets", ":id", "balance"] }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,284 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../shared/presentation/widgets/loading_overlay.dart';
+
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.user;
+
+    return Scaffold(
+      backgroundColor: AppTheme.grey50,
+      appBar: AppBar(
+        title: Text(
+          'Profile',
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.grey900,
+          ),
+        ),
+        backgroundColor: AppTheme.white,
+        elevation: 0,
+      ),
+      body: LoadingOverlay(
+        isLoading: authState.isLoading,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              _buildProfileHeader(user?.fullName ?? 'User', user?.email ?? ''),
+              const SizedBox(height: 24),
+              _buildProfileStats(),
+              const SizedBox(height: 24),
+              _buildMenuSection(context, ref),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(String name, String email) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.lightShadow,
+      ),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'U',
+              style: GoogleFonts.poppins(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            name,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.grey900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            email,
+            style: GoogleFonts.poppins(fontSize: 16, color: AppTheme.grey600),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.successColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Verified Account',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.successColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileStats() {
+    return Row(
+      children: [
+        Expanded(child: _buildStatCard('Animals', '0', Icons.pets)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildStatCard('Trades', '0', Icons.swap_horiz)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildStatCard('Rating', '5.0', Icons.star)),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.lightShadow,
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppTheme.primaryColor, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.grey900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.grey600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuSection(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.lightShadow,
+      ),
+      child: Column(
+        children: [
+          _buildMenuItem(
+            icon: Icons.person_outline,
+            title: 'Edit Profile',
+            onTap: () {
+              // TODO: Navigate to edit profile
+            },
+          ),
+          _buildDivider(),
+          _buildMenuItem(
+            icon: Icons.security,
+            title: 'Security Settings',
+            onTap: () {
+              // TODO: Navigate to security settings
+            },
+          ),
+          _buildDivider(),
+          _buildMenuItem(
+            icon: Icons.notifications_outline,
+            title: 'Notifications',
+            onTap: () {
+              // TODO: Navigate to notification settings
+            },
+          ),
+          _buildDivider(),
+          _buildMenuItem(
+            icon: Icons.help_outline,
+            title: 'Help & Support',
+            onTap: () {
+              // TODO: Navigate to help
+            },
+          ),
+          _buildDivider(),
+          _buildMenuItem(
+            icon: Icons.info_outline,
+            title: 'About',
+            onTap: () {
+              // TODO: Show about dialog
+            },
+          ),
+          _buildDivider(),
+          _buildMenuItem(
+            icon: Icons.logout,
+            title: 'Sign Out',
+            textColor: AppTheme.errorColor,
+            onTap: () => _showLogoutConfirmation(context, ref),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? textColor,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: textColor ?? AppTheme.grey700),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: textColor ?? AppTheme.grey900,
+        ),
+      ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: AppTheme.grey400,
+      ),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildDivider() {
+    return const Divider(height: 1, color: AppTheme.grey200);
+  }
+
+  void _showLogoutConfirmation(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Sign Out',
+          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: GoogleFonts.poppins(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.grey600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              context.pop();
+              ref.read(authNotifierProvider.notifier).logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+            ),
+            child: Text(
+              'Sign Out',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

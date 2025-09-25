@@ -1,0 +1,185 @@
+// Zauro Backend - Blockchain Animal Marketplace
+// Prisma Schema for PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User roles enum
+enum UserRole {
+  ADMIN
+  HR_MANAGER
+  EMPLOYEE_TRADER
+}
+
+// Trade status enum
+enum TradeStatus {
+  PENDING
+  LISTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+// Animal species enum
+enum AnimalSpecies {
+  DOG
+  CAT
+  BIRD
+  FISH
+  REPTILE
+  OTHER
+}
+
+// OTP type enum
+enum OtpType {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+}
+
+// User model
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  phone     String?  @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole @default(EMPLOYEE_TRADER)
+  isActive  Boolean  @default(true)
+  isVerified Boolean @default(false)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLoginAt DateTime?
+  
+  // Relations
+  wallet   Wallet?
+  animals  Animal[]
+  tradesAsSeller Trade[] @relation("SellerTrades")
+  tradesAsBuyer  Trade[] @relation("BuyerTrades")
+  otps     Otp[]
+  
+  @@map("users")
+}
+
+// Wallet model for Hedera accounts
+model Wallet {
+  id            String  @id @default(cuid())
+  userId        String  @unique
+  hederaAccountId String @unique
+  encryptedPrivateKey String
+  publicKey     String
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("wallets")
+}
+
+// Animal/NFT model
+model Animal {
+  id              String        @id @default(cuid())
+  name            String
+  species         AnimalSpecies
+  breed           String?
+  age             Int?
+  description     String?
+  
+  // NFT metadata
+  tokenId         String?       @unique
+  tokenSerialNumber String?
+  imageUrl        String?
+  vetRecordUrl    String?
+  aiPredictionValue Decimal?
+  
+  // Ownership
+  ownerId         String
+  isListed        Boolean       @default(false)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  owner User @relation(fields: [ownerId], references: [id])
+  trades Trade[]
+  
+  @@map("animals")
+}
+
+// Trade model for marketplace transactions
+model Trade {
+  id            String      @id @default(cuid())
+  animalId      String
+  sellerId      String
+  buyerId       String?
+  
+  // Trade details
+  price         Decimal
+  currency      String      @default("HBAR") // HBAR or ZAU token
+  status        TradeStatus @default(PENDING)
+  
+  // Smart contract details
+  contractAddress String?
+  transactionHash String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+  
+  // Relations
+  animal Animal @relation(fields: [animalId], references: [id])
+  seller User   @relation("SellerTrades", fields: [sellerId], references: [id])
+  buyer  User?  @relation("BuyerTrades", fields: [buyerId], references: [id])
+  
+  @@map("trades")
+}
+
+// OTP model for password reset and verification
+model Otp {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  type      OtpType
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("otps")
+}
+
+// File uploads tracking
+model FileUpload {
+  id          String   @id @default(cuid())
+  fileName    String
+  originalName String
+  mimeType    String
+  size        Int
+  url         String
+  uploadedBy  String
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  @@map("file_uploads")
+}
