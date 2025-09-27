@@ -78,16 +78,7 @@ abstract class ApiClient {
 
   // Animals Endpoints
   @POST('/animals')
-  @MultiPart()
-  Future<ApiResponse<Animal>> createAnimal(
-    @Part() String name,
-    @Part() String species,
-    @Part() String? breed,
-    @Part() int? age,
-    @Part() String? description,
-    @Part() double? aiPredictionValue,
-    @Part() MultipartFile? image,
-  );
+  Future<ApiResponse<Animal>> createAnimal(@Body() CreateAnimalRequest request);
 
   @GET('/animals')
   Future<ApiResponse<PaginatedResponse<Animal>>> getAnimals(
@@ -108,19 +99,9 @@ abstract class ApiClient {
   @DELETE('/animals/{id}')
   Future<ApiResponse<MessageResponse>> deleteAnimal(@Path('id') String id);
 
-  @POST('/animals/{id}/upload-image')
-  @MultiPart()
-  Future<ApiResponse<Animal>> uploadAnimalImage(
-    @Path('id') String id,
-    @Part() MultipartFile image,
-  );
-
-  @POST('/animals/{id}/upload-vet-record')
-  @MultiPart()
-  Future<ApiResponse<Animal>> uploadVetRecord(
-    @Path('id') String id,
-    @Part() MultipartFile vetRecord,
-  );
+  // File upload endpoints - implement separately with Dio directly
+  // @POST('/animals/{id}/upload-image')
+  // @POST('/animals/{id}/upload-vet-record')
 
   // Trading Endpoints
   @POST('/trades/list')

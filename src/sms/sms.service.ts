@@ -8,10 +8,15 @@ export class SmsService {
   private client: twilio.Twilio;
 
   constructor(private configService: ConfigService) {
-    this.client = twilio(
-      this.configService.get<string>('twilio.accountSid'),
-      this.configService.get<string>('twilio.authToken'),
-    );
+    const accountSid = this.configService.get<string>('twilio.accountSid');
+    const authToken = this.configService.get<string>('twilio.authToken');
+    const phoneNumber = this.configService.get<string>('twilio.phoneNumber');
+
+    if (!accountSid || !authToken || !phoneNumber) {
+      throw new Error('Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) must be configured in environment variables');
+    }
+
+    this.client = twilio(accountSid, authToken);
   }
 
   async sendPasswordResetOtp(phone: string, otp: string): Promise<void> {

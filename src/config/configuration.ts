@@ -14,12 +14,9 @@ export default () => ({
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   
-  smtp: {
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM,
+  mailersend: {
+    apiKey: process.env.MAILERSEND_API_KEY,
+    from: process.env.MAILERSEND_FROM || 'noreply@zauro.com',
   },
   
   twilio: {

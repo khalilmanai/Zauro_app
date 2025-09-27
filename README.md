@@ -22,7 +22,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 | **Blockchain** | Hedera Hashgraph SDK | NFT minting, transfers, and atomic swaps |
 | **File Storage** | Supabase Storage | Animal images and veterinary records |
 | **Authentication** | JWT with refresh tokens | Secure user authentication |
-| **Email Service** | Nodemailer (SMTP) | Transactional emails |
+| **Email Service** | MailerSend | Transactional emails and notifications |
 | **SMS Service** | Twilio | SMS notifications and OTP delivery |
 | **Documentation** | Swagger/OpenAPI | Auto-generated API documentation |
 | **Security** | bcrypt, AES-256, Rate limiting | Data protection and security |
@@ -553,9 +553,8 @@ SUPABASE_URL="https://your-project.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
 
 # Communication Services
-SMTP_HOST="smtp.gmail.com"
-SMTP_USER="your-email@gmail.com"
-SMTP_PASS="your-app-password"
+MAILERSEND_API_KEY="mlsn.your-mailersend-api-key"
+MAILERSEND_FROM="noreply@yourdomain.com"
 TWILIO_ACCOUNT_SID="your-twilio-account-sid"
 TWILIO_AUTH_TOKEN="your-twilio-auth-token"
 
@@ -573,6 +572,52 @@ THROTTLE_LIMIT=10
 - **Memory**: Minimum 512MB RAM, recommended 2GB+
 - **Storage**: SSD recommended for database performance
 - **Network**: HTTPS/TLS support required for production
+
+---
+
+## 📧 Email Service Migration (MailerSend)
+
+### Migration from Nodemailer to MailerSend
+
+The Zauro Marketplace has been migrated from Nodemailer (SMTP) to MailerSend for improved email deliverability and advanced features.
+
+#### Key Changes:
+- **Removed**: `nodemailer` and `@types/nodemailer` packages
+- **Added**: `mailersend` package
+- **Updated**: Email service configuration and implementation
+- **Enhanced**: Email templates with both HTML and plain text versions
+
+#### Required Environment Variables:
+```bash
+# Replace old SMTP configuration with:
+MAILERSEND_API_KEY="mlsn.your-mailersend-api-key-here"
+MAILERSEND_FROM="noreply@yourdomain.com"
+```
+
+#### Features:
+- ✅ Transactional email delivery
+- ✅ Password reset OTP emails
+- ✅ Welcome emails for new users
+- ✅ Trade notification emails
+- ✅ HTML and plain text email templates
+- ✅ Improved deliverability rates
+- ✅ Advanced email analytics (via MailerSend dashboard)
+
+#### Setup Instructions:
+1. Create a MailerSend account at [mailersend.com](https://www.mailersend.com/)
+2. Add and verify your sending domain in MailerSend dashboard
+3. Generate an API key from your MailerSend dashboard
+4. Update your environment variables with the new configuration:
+   ```bash
+   MAILERSEND_API_KEY="your-api-key-here"
+   MAILERSEND_FROM="noreply@yourdomain.com"  # Must be verified domain
+   ```
+5. Restart your application
+
+#### Important Notes:
+- **Trial Account**: Can only send emails to the administrator's email address
+- **Domain Verification**: The `MAILERSEND_FROM` email domain must be verified in your MailerSend account
+- **Production**: Upgrade to a paid plan to send emails to any recipient
 
 ---
 

@@ -35,7 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
 
-    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+    ref.listen(authNotifierProvider, (previous, next) {
       if (next.isAuthenticated) {
         context.go('/home');
       } else if (next.hasError) {
@@ -267,9 +267,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
-      ref
-          .read(authNotifierProvider.notifier)
-          .login(
+      ref.read(authNotifierProvider.notifier).login(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );

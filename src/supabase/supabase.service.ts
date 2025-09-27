@@ -12,10 +12,14 @@ export class SupabaseService {
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    this.supabase = createClient(
-      this.configService.get<string>('supabase.url') || 'https://default.supabase.co',
-      this.configService.get<string>('supabase.serviceRoleKey') || 'default-service-role-key',
-    );
+    const supabaseUrl = this.configService.get<string>('supabase.url');
+    const supabaseServiceKey = this.configService.get<string>('supabase.serviceRoleKey');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase URL and service role key must be configured in environment variables');
+    }
+
+    this.supabase = createClient(supabaseUrl, supabaseServiceKey);
   }
 
   async uploadFile(

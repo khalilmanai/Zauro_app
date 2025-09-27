@@ -18,12 +18,19 @@ export class HederaService {
   }
 
   private initializeClient() {
-    const accountId = AccountId.fromString(this.configService.get<string>('hedera.accountId') || '0.0.0');
-    const privateKey = PrivateKey.fromString(this.configService.get<string>('hedera.privateKey') || '302e020100300506032b657004220420');
+    const accountId = this.configService.get<string>('hedera.accountId');
+    const privateKey = this.configService.get<string>('hedera.privateKey');
     const network = this.configService.get<string>('hedera.network') || 'testnet';
 
+    if (!accountId || !privateKey) {
+      throw new Error('Hedera account ID and private key must be configured in environment variables');
+    }
+
+    const parsedAccountId = AccountId.fromString(accountId);
+    const parsedPrivateKey = PrivateKey.fromString(privateKey);
+
     this.client = Client.forName(network);
-    this.client.setOperator(accountId, privateKey);
+    this.client.setOperator(parsedAccountId, parsedPrivateKey);
   }
 
   async createAccount(): Promise<{ accountId: string; privateKey: string; publicKey: string }> {

@@ -44,7 +44,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
 
-    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+    ref.listen(authNotifierProvider, (previous, next) {
       if (next.isAuthenticated) {
         context.go('/home');
       } else if (next.hasError) {
@@ -347,9 +347,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   void _handleRegister() {
     if (_formKey.currentState!.validate() && _agreeToTerms) {
-      ref
-          .read(authNotifierProvider.notifier)
-          .register(
+      ref.read(authNotifierProvider.notifier).register(
             email: _emailController.text.trim(),
             phone: _phoneController.text.trim().isNotEmpty
                 ? _phoneController.text.trim()

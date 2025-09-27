@@ -10,10 +10,15 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
+    const jwtRefreshSecret = configService.get<string>('jwt.refreshSecret');
+    if (!jwtRefreshSecret) {
+      throw new Error('JWT_REFRESH_SECRET must be configured in environment variables');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.refreshSecret') || 'default-refresh-secret',
+      secretOrKey: jwtRefreshSecret,
     });
   }
 

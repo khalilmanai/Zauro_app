@@ -173,7 +173,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           _buildDivider(),
           _buildMenuItem(
-            icon: Icons.notifications_outline,
+            icon: Icons.notifications_outlined,
             title: 'Notifications',
             onTap: () {
               // TODO: Navigate to notification settings

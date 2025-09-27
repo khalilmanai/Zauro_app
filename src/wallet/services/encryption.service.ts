@@ -7,10 +7,14 @@ export class EncryptionService {
   private readonly key: string;
 
   constructor(private configService: ConfigService) {
-    this.key = this.configService.get<string>('encryption.key') || 'default-32-character-encryption-key';
-    if (!this.key || this.key.length !== 32) {
+    const encryptionKey = this.configService.get<string>('encryption.key');
+    if (!encryptionKey) {
+      throw new Error('ENCRYPTION_KEY must be configured in environment variables');
+    }
+    if (encryptionKey.length !== 32) {
       throw new Error('ENCRYPTION_KEY must be exactly 32 characters long');
     }
+    this.key = encryptionKey;
   }
 
   encrypt(text: string): string {
