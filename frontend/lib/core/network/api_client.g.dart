@@ -710,12 +710,14 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<Wallet>> createWallet() async {
+  Future<ApiResponse<WalletResponse>> createWallet(
+      CreateWalletRequest request) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
-    const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<ApiResponse<Wallet>>(Options(
+    final _data = <String, dynamic>{};
+    _data.addAll(request.toJson());
+    final _options = _setStreamType<ApiResponse<WalletResponse>>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
@@ -732,11 +734,11 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<Wallet> _value;
+    late ApiResponse<WalletResponse> _value;
     try {
-      _value = ApiResponse<Wallet>.fromJson(
+      _value = ApiResponse<WalletResponse>.fromJson(
         _result.data!,
-        (json) => Wallet.fromJson(json as Map<String, dynamic>),
+        (json) => WalletResponse.fromJson(json as Map<String, dynamic>),
       );
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
@@ -746,12 +748,12 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<Wallet>> getMyWallet() async {
+  Future<ApiResponse<WalletResponse>> getMyWallet() async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<ApiResponse<Wallet>>(Options(
+    final _options = _setStreamType<ApiResponse<WalletResponse>>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -768,11 +770,11 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<Wallet> _value;
+    late ApiResponse<WalletResponse> _value;
     try {
-      _value = ApiResponse<Wallet>.fromJson(
+      _value = ApiResponse<WalletResponse>.fromJson(
         _result.data!,
-        (json) => Wallet.fromJson(json as Map<String, dynamic>),
+        (json) => WalletResponse.fromJson(json as Map<String, dynamic>),
       );
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
@@ -818,12 +820,50 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<Wallet>> getWallet(String id) async {
+  Future<ApiResponse<TransferResponse>> transferHbar(
+      TransferHbarRequest request) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = <String, dynamic>{};
+    _data.addAll(request.toJson());
+    final _options = _setStreamType<ApiResponse<TransferResponse>>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/wallets/transfer/hbar',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late ApiResponse<TransferResponse> _value;
+    try {
+      _value = ApiResponse<TransferResponse>.fromJson(
+        _result.data!,
+        (json) => TransferResponse.fromJson(json as Map<String, dynamic>),
+      );
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
+  Future<ApiResponse<WalletResponse>> getWallet(String id) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<ApiResponse<Wallet>>(Options(
+    final _options = _setStreamType<ApiResponse<WalletResponse>>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -840,11 +880,11 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<Wallet> _value;
+    late ApiResponse<WalletResponse> _value;
     try {
-      _value = ApiResponse<Wallet>.fromJson(
+      _value = ApiResponse<WalletResponse>.fromJson(
         _result.data!,
-        (json) => Wallet.fromJson(json as Map<String, dynamic>),
+        (json) => WalletResponse.fromJson(json as Map<String, dynamic>),
       );
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);

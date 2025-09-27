@@ -6,10 +6,16 @@ class AppConfig {
       'Blockchain-based Animal Trading Platform';
 
   // API Configuration
-  static const String baseUrl =
-      'http://localhost:3000'; // Change for production
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:3000', // Development default
+  );
   static const String apiPrefix = '/api/v1';
   static const String fullApiUrl = '$baseUrl$apiPrefix';
+  
+  // Production Configuration
+  static const String productionBaseUrl = 'https://api.zauro.com';
+  static const String productionApiUrl = '$productionBaseUrl$apiPrefix';
 
   // Endpoints
   static const String authEndpoint = '/auth';

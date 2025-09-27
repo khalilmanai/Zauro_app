@@ -1,0 +1,1 @@
+{"version":3,"file":"transfer-response.dto.js","sourceRoot":"","sources":["../../../../src/wallet/dto/transfer-response.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,6CAA8C;AAE9C,MAAa,mBAAmB;IAK9B,eAAe,CAAS;CACzB;AAND,kDAMC;AADC;IAJC,IAAA,qBAAW,EAAC;QACX,OAAO,EAAE,iCAAiC;QAC1C,WAAW,EAAE,4BAA4B;KAC1C,CAAC;;4DACsB"}

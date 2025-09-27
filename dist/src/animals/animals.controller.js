@@ -65,7 +65,7 @@ exports.AnimalsController = AnimalsController;
 __decorate([
     (0, common_1.Post)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('image')),
     (0, swagger_1.ApiConsumes)('multipart/form-data'),
     (0, swagger_1.ApiOperation)({ summary: 'Create a new animal and mint NFT' }),
@@ -100,7 +100,7 @@ __decorate([
 __decorate([
     (0, common_1.Patch)(':id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'Update animal metadata' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Animal updated successfully', type: animal_response_dto_1.AnimalResponseDto }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - not your animal' }),
@@ -115,7 +115,7 @@ __decorate([
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'Delete animal and burn NFT' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Animal deleted and NFT burned successfully' }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - not your animal' }),
@@ -129,7 +129,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)(':id/upload-image'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('image')),
     (0, swagger_1.ApiConsumes)('multipart/form-data'),
     (0, swagger_1.ApiOperation)({ summary: 'Upload animal image' }),
@@ -144,7 +144,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)(':id/upload-vet-record'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('vetRecord')),
     (0, swagger_1.ApiConsumes)('multipart/form-data'),
     (0, swagger_1.ApiOperation)({ summary: 'Upload vet record' }),

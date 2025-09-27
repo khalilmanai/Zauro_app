@@ -1,10 +1,11 @@
+export declare class BalanceDto {
+    hbar: string;
+    zau: string;
+}
 export declare class WalletResponseDto {
     id: string;
     hederaAccountId: string;
     publicKey: string;
-    balance: {
-        hbar: string;
-        zau: string;
-    };
+    balance: BalanceDto;
     createdAt: Date;
 }

@@ -17,10 +17,10 @@ class CreateWalletDto {
 }
 exports.CreateWalletDto = CreateWalletDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({
+    (0, swagger_1.ApiPropertyOptional)({
         example: 'cm4abc123def456ghi789jkl',
-        description: 'User ID for wallet creation (optional - defaults to authenticated user)',
-        required: false
+        description: 'User ID for wallet creation (ignored - always uses authenticated user ID)',
+        type: String
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

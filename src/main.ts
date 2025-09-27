@@ -16,16 +16,53 @@ async function bootstrap() {
     transform: true,
   }));
 
-  // Swagger documentation
+  // Swagger documentation with JWT Bearer authentication
   const config = new DocumentBuilder()
     .setTitle('Zauro Marketplace API')
     .setDescription('Blockchain-based animal marketplace API built with NestJS, Hedera, and Supabase')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controller!
+    )
+    .addServer('http://localhost:3000', 'Development server')
+    .addServer('https://api.zauro.com', 'Production server')
+    .addTag('Authentication', 'User authentication and authorization endpoints')
+    .addTag('Wallet', 'Hedera wallet management and HBAR transfers')
+    .addTag('Animals', 'Animal NFT management and marketplace listings')
+    .addTag('Trades', 'Trading and transaction management')
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  
+  // Enhanced Swagger UI options
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true, // Keep authorization after page refresh
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+      docExpansion: 'none', // Don't expand operations by default
+      filter: true, // Enable search filter
+      showRequestHeaders: true,
+      tryItOutEnabled: true,
+    },
+    customSiteTitle: 'Zauro API Documentation',
+    customfavIcon: '/favicon.ico',
+    customJs: [
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
+    ],
+    customCssUrl: [
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
+    ],
+  });
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

@@ -30,9 +30,10 @@ export class AuthController {
 
   @Post('refresh')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or expired JWT token' })
   async refreshToken(@Request() req: any): Promise<{ accessToken: string }> {
     return this.authService.refreshToken(req.user.id);
   }
@@ -65,9 +66,10 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or expired JWT token' })
   async getProfile(@Request() req: any) {
     return {
       success: true,

@@ -23,7 +23,7 @@ export class TradesController {
 
   @Post('list')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'List an animal for trade' })
   @ApiResponse({ status: 201, description: 'Animal listed for trade successfully', type: TradeResponseDto })
   async createTrade(@Body() createTradeDto: CreateTradeDto, @Request() req: any): Promise<TradeResponseDto> {
@@ -59,7 +59,7 @@ export class TradesController {
 
   @Post('buy/:id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Buy an animal (initiate trade)' })
   @ApiResponse({ status: 200, description: 'Trade initiated successfully', type: TradeResponseDto })
   @ApiResponse({ status: 400, description: 'Trade not available or insufficient balance' })
@@ -69,7 +69,7 @@ export class TradesController {
 
   @Post('execute/:id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Execute trade (complete atomic swap)' })
   @ApiResponse({ status: 200, description: 'Trade executed successfully', type: TradeResponseDto })
   @ApiResponse({ status: 400, description: 'Trade execution failed' })
@@ -79,7 +79,7 @@ export class TradesController {
 
   @Post('cancel/:id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Cancel a trade' })
   @ApiResponse({ status: 200, description: 'Trade cancelled successfully', type: TradeResponseDto })
   @ApiResponse({ status: 403, description: 'Forbidden - not your trade' })

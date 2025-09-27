@@ -69,44 +69,40 @@ class WalletUser {
   String get fullName => '$firstName $lastName';
 }
 
-// Wallet Balance Model
+// Wallet Balance Model - Updated to match backend BalanceResponseDto
 @JsonSerializable()
 class WalletBalance {
-  final double hbarBalance;
-  final double zauBalance;
-  final String hederaAccountId;
-  final DateTime lastUpdated;
+  final String hbar;
+  final String zau;
 
   const WalletBalance({
-    required this.hbarBalance,
-    required this.zauBalance,
-    required this.hederaAccountId,
-    required this.lastUpdated,
+    required this.hbar,
+    required this.zau,
   });
 
   factory WalletBalance.fromJson(Map<String, dynamic> json) =>
       _$WalletBalanceFromJson(json);
   Map<String, dynamic> toJson() => _$WalletBalanceToJson(this);
 
+  // Convenience getters for backward compatibility
+  double get hbarBalance => double.tryParse(hbar) ?? 0.0;
+  double get zauBalance => double.tryParse(zau) ?? 0.0;
+
   WalletBalance copyWith({
-    double? hbarBalance,
-    double? zauBalance,
-    String? hederaAccountId,
-    DateTime? lastUpdated,
+    String? hbar,
+    String? zau,
   }) {
     return WalletBalance(
-      hbarBalance: hbarBalance ?? this.hbarBalance,
-      zauBalance: zauBalance ?? this.zauBalance,
-      hederaAccountId: hederaAccountId ?? this.hederaAccountId,
-      lastUpdated: lastUpdated ?? this.lastUpdated,
+      hbar: hbar ?? this.hbar,
+      zau: zau ?? this.zau,
     );
   }
 
   double get totalBalance => hbarBalance + zauBalance;
 
-  String get formattedHbarBalance => '${hbarBalance.toStringAsFixed(2)} HBAR';
+  String get formattedHbarBalance => '${hbarBalance.toStringAsFixed(8)} HBAR';
   String get formattedZauBalance => '${zauBalance.toStringAsFixed(2)} ZAU';
-  String get formattedTotalBalance => '${totalBalance.toStringAsFixed(2)}';
+  String get formattedTotalBalance => '${totalBalance.toStringAsFixed(8)}';
 }
 
 // Transaction Model
@@ -216,7 +212,69 @@ class Transaction {
   bool get isFailed => status == 'FAILED';
 }
 
-// Send Transaction Request
+// Create Wallet Request - Updated to match backend CreateWalletDto
+@JsonSerializable()
+class CreateWalletRequest {
+  final String? userId; // Optional, ignored by backend
+
+  const CreateWalletRequest({this.userId});
+
+  factory CreateWalletRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreateWalletRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$CreateWalletRequestToJson(this);
+}
+
+// Transfer HBAR Request - New DTO matching backend TransferHbarDto
+@JsonSerializable()
+class TransferHbarRequest {
+  final String toAccountId;
+  final String amount;
+
+  const TransferHbarRequest({
+    required this.toAccountId,
+    required this.amount,
+  });
+
+  factory TransferHbarRequest.fromJson(Map<String, dynamic> json) =>
+      _$TransferHbarRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$TransferHbarRequestToJson(this);
+}
+
+// Transfer Response - New DTO matching backend TransferResponseDto
+@JsonSerializable()
+class TransferResponse {
+  final String transactionHash;
+
+  const TransferResponse({required this.transactionHash});
+
+  factory TransferResponse.fromJson(Map<String, dynamic> json) =>
+      _$TransferResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$TransferResponseToJson(this);
+}
+
+// Enhanced Wallet Model - Updated to match backend WalletResponseDto
+@JsonSerializable()
+class WalletResponse {
+  final String id;
+  final String hederaAccountId;
+  final String publicKey;
+  final WalletBalance balance;
+  final DateTime createdAt;
+
+  const WalletResponse({
+    required this.id,
+    required this.hederaAccountId,
+    required this.publicKey,
+    required this.balance,
+    required this.createdAt,
+  });
+
+  factory WalletResponse.fromJson(Map<String, dynamic> json) =>
+      _$WalletResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$WalletResponseToJson(this);
+}
+
+// Legacy Send Transaction Request - Kept for backward compatibility
 @JsonSerializable()
 class SendTransactionRequest {
   final String toAddress;

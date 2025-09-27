@@ -77,9 +77,10 @@ __decorate([
 __decorate([
     (0, common_1.Post)('refresh'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'Refresh access token' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Token refreshed successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized - Invalid or expired JWT token' }),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -115,9 +116,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('profile'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'Get user profile' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'User profile retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized - Invalid or expired JWT token' }),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

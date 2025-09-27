@@ -61,7 +61,7 @@ exports.TradesController = TradesController;
 __decorate([
     (0, common_1.Post)('list'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'List an animal for trade' }),
     (0, swagger_1.ApiResponse)({ status: 201, description: 'Animal listed for trade successfully', type: trade_response_dto_1.TradeResponseDto }),
     __param(0, (0, common_1.Body)()),
@@ -93,7 +93,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)('buy/:id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'Buy an animal (initiate trade)' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Trade initiated successfully', type: trade_response_dto_1.TradeResponseDto }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Trade not available or insufficient balance' }),
@@ -106,7 +106,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)('execute/:id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'Execute trade (complete atomic swap)' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Trade executed successfully', type: trade_response_dto_1.TradeResponseDto }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Trade execution failed' }),
@@ -119,7 +119,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)('cancel/:id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, swagger_1.ApiOperation)({ summary: 'Cancel a trade' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Trade cancelled successfully', type: trade_response_dto_1.TradeResponseDto }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - not your trade' }),

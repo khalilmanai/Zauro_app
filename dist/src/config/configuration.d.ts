@@ -11,6 +11,14 @@ declare const _default: () => {
         expiresIn: string;
         refreshExpiresIn: string;
     };
+    smtp: {
+        host: string | undefined;
+        port: number;
+        secure: boolean;
+        user: string | undefined;
+        pass: string | undefined;
+        from: string;
+    };
     mailersend: {
         apiKey: string | undefined;
         from: string;

@@ -1,15 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../shared/presentation/widgets/loading_overlay.dart';
+import '../../../shared/presentation/widgets/custom_button.dart';
+import '../../providers/wallet_provider.dart';
+import '../widgets/transfer_hbar_dialog.dart';
+import '../widgets/receive_qr_dialog.dart';
 
-class WalletScreen extends ConsumerWidget {
+class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends ConsumerState<WalletScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load wallet data on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadWalletData();
+    });
+  }
+
+  void _loadWalletData() {
+    ref.read(walletProvider.notifier).getMyWallet();
+    ref.read(walletBalanceProvider.notifier).getBalance();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final walletState = ref.watch(walletProvider);
+    final balanceState = ref.watch(walletBalanceProvider);
+    final hasWallet = ref.watch(hasWalletProvider);
+    
+    final isLoading = walletState.isLoading || balanceState.isLoading;
+
     return Scaffold(
       backgroundColor: AppTheme.grey50,
       appBar: AppBar(
@@ -25,30 +55,30 @@ class WalletScreen extends ConsumerWidget {
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: () {
-              // TODO: Refresh wallet data
-            },
+            onPressed: _refreshWallet,
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
       body: LoadingOverlay(
-        isLoading: false, // TODO: Connect to actual loading state
+        isLoading: isLoading,
         child: RefreshIndicator(
-          onRefresh: () async {
-            // TODO: Implement refresh functionality
-          },
+          onRefresh: _refreshWallet,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildBalanceCard(),
-                const SizedBox(height: 24),
-                _buildWalletActions(),
-                const SizedBox(height: 32),
-                _buildRecentTransactions(),
+                if (!hasWallet) 
+                  _buildCreateWalletCard()
+                else ...[
+                  _buildBalanceCard(balanceState),
+                  const SizedBox(height: 24),
+                  _buildWalletActions(),
+                  const SizedBox(height: 32),
+                  _buildRecentTransactions(),
+                ],
               ],
             ),
           ),
@@ -57,7 +87,90 @@ class WalletScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBalanceCard() {
+  Future<void> _refreshWallet() async {
+    await Future.wait([
+      ref.read(walletProvider.notifier).refresh(),
+      ref.read(walletBalanceProvider.notifier).refresh(),
+    ]);
+  }
+
+  Widget _buildCreateWalletCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.mediumShadow,
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(40),
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet,
+              size: 40,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Create Your Wallet',
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.grey900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create a secure Hedera wallet to start trading animals and managing your digital assets.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              color: AppTheme.grey600,
+            ),
+          ),
+          const SizedBox(height: 24),
+          CustomButton(
+            onPressed: () => _createWallet(),
+            text: 'Create Wallet',
+            isLoading: ref.watch(walletProvider).isLoading,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createWallet() async {
+    try {
+      await ref.read(walletProvider.notifier).createWallet();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Wallet created successfully!'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create wallet: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildBalanceCard(AsyncValue balanceState) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -100,29 +213,63 @@ class WalletScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            '0.00 HBAR', // TODO: Use actual balance
-            style: GoogleFonts.poppins(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.white,
+          balanceState.when(
+            data: (balance) => Text(
+              balance?.formattedHbarBalance ?? '0.00000000 HBAR',
+              style: GoogleFonts.poppins(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.white,
+              ),
+            ),
+            loading: () => Text(
+              'Loading...',
+              style: GoogleFonts.poppins(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.white,
+              ),
+            ),
+            error: (_, __) => Text(
+              'Error loading balance',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.white,
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '\$0.00 USD', // TODO: Use actual USD value
+            '\$0.00 USD', // TODO: Add USD conversion
             style: GoogleFonts.poppins(
               fontSize: 16,
               color: AppTheme.white.withOpacity(0.8),
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildBalanceItem('HBAR', '0.00')),
-              const SizedBox(width: 16),
-              Expanded(child: _buildBalanceItem('ZAU', '0.00')),
-            ],
+          balanceState.when(
+            data: (balance) => Row(
+              children: [
+                Expanded(child: _buildBalanceItem('HBAR', balance?.hbar ?? '0.00000000')),
+                const SizedBox(width: 16),
+                Expanded(child: _buildBalanceItem('ZAU', balance?.zau ?? '0.00')),
+              ],
+            ),
+            loading: () => Row(
+              children: [
+                Expanded(child: _buildBalanceItem('HBAR', '...')),
+                const SizedBox(width: 16),
+                Expanded(child: _buildBalanceItem('ZAU', '...')),
+              ],
+            ),
+            error: (_, __) => Row(
+              children: [
+                Expanded(child: _buildBalanceItem('HBAR', 'Error')),
+                const SizedBox(width: 16),
+                Expanded(child: _buildBalanceItem('ZAU', 'Error')),
+              ],
+            ),
           ),
         ],
       ),
@@ -168,9 +315,7 @@ class WalletScreen extends ConsumerWidget {
             title: 'Send',
             icon: Icons.arrow_upward,
             color: AppTheme.primaryColor,
-            onTap: () {
-              // TODO: Navigate to send screen
-            },
+            onTap: () => _showTransferDialog(),
           ),
         ),
         const SizedBox(width: 12),
@@ -179,9 +324,7 @@ class WalletScreen extends ConsumerWidget {
             title: 'Receive',
             icon: Icons.arrow_downward,
             color: AppTheme.successColor,
-            onTap: () {
-              // TODO: Show receive QR code
-            },
+            onTap: () => _showReceiveDialog(),
           ),
         ),
         const SizedBox(width: 12),
@@ -190,9 +333,7 @@ class WalletScreen extends ConsumerWidget {
             title: 'History',
             icon: Icons.history,
             color: AppTheme.accentColor,
-            onTap: () {
-              // TODO: Navigate to transaction history
-            },
+            onTap: () => context.push('/wallet/history'),
           ),
         ),
       ],
@@ -318,6 +459,34 @@ class WalletScreen extends ConsumerWidget {
             style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.grey500),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showTransferDialog() {
+    final wallet = ref.read(walletProvider).value;
+    if (wallet == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => TransferHbarDialog(
+        wallet: wallet,
+        onTransferComplete: () {
+          _refreshWallet();
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  void _showReceiveDialog() {
+    final wallet = ref.read(walletProvider).value;
+    if (wallet == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => ReceiveQrDialog(
+        hederaAccountId: wallet.hederaAccountId,
       ),
     );
   }

@@ -45,18 +45,14 @@ Map<String, dynamic> _$WalletUserToJson(WalletUser instance) =>
 
 WalletBalance _$WalletBalanceFromJson(Map<String, dynamic> json) =>
     WalletBalance(
-      hbarBalance: (json['hbarBalance'] as num).toDouble(),
-      zauBalance: (json['zauBalance'] as num).toDouble(),
-      hederaAccountId: json['hederaAccountId'] as String,
-      lastUpdated: DateTime.parse(json['lastUpdated'] as String),
+      hbar: json['hbar'] as String,
+      zau: json['zau'] as String,
     );
 
 Map<String, dynamic> _$WalletBalanceToJson(WalletBalance instance) =>
     <String, dynamic>{
-      'hbarBalance': instance.hbarBalance,
-      'zauBalance': instance.zauBalance,
-      'hederaAccountId': instance.hederaAccountId,
-      'lastUpdated': instance.lastUpdated.toIso8601String(),
+      'hbar': instance.hbar,
+      'zau': instance.zau,
     };
 
 Transaction _$TransactionFromJson(Map<String, dynamic> json) => Transaction(
@@ -90,6 +86,58 @@ Map<String, dynamic> _$TransactionToJson(Transaction instance) =>
       'transactionHash': instance.transactionHash,
       'createdAt': instance.createdAt.toIso8601String(),
       'confirmedAt': instance.confirmedAt?.toIso8601String(),
+    };
+
+CreateWalletRequest _$CreateWalletRequestFromJson(Map<String, dynamic> json) =>
+    CreateWalletRequest(
+      userId: json['userId'] as String?,
+    );
+
+Map<String, dynamic> _$CreateWalletRequestToJson(
+        CreateWalletRequest instance) =>
+    <String, dynamic>{
+      'userId': instance.userId,
+    };
+
+TransferHbarRequest _$TransferHbarRequestFromJson(Map<String, dynamic> json) =>
+    TransferHbarRequest(
+      toAccountId: json['toAccountId'] as String,
+      amount: json['amount'] as String,
+    );
+
+Map<String, dynamic> _$TransferHbarRequestToJson(
+        TransferHbarRequest instance) =>
+    <String, dynamic>{
+      'toAccountId': instance.toAccountId,
+      'amount': instance.amount,
+    };
+
+TransferResponse _$TransferResponseFromJson(Map<String, dynamic> json) =>
+    TransferResponse(
+      transactionHash: json['transactionHash'] as String,
+    );
+
+Map<String, dynamic> _$TransferResponseToJson(TransferResponse instance) =>
+    <String, dynamic>{
+      'transactionHash': instance.transactionHash,
+    };
+
+WalletResponse _$WalletResponseFromJson(Map<String, dynamic> json) =>
+    WalletResponse(
+      id: json['id'] as String,
+      hederaAccountId: json['hederaAccountId'] as String,
+      publicKey: json['publicKey'] as String,
+      balance: WalletBalance.fromJson(json['balance'] as Map<String, dynamic>),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+
+Map<String, dynamic> _$WalletResponseToJson(WalletResponse instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'hederaAccountId': instance.hederaAccountId,
+      'publicKey': instance.publicKey,
+      'balance': instance.balance,
+      'createdAt': instance.createdAt.toIso8601String(),
     };
 
 SendTransactionRequest _$SendTransactionRequestFromJson(

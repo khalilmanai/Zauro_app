@@ -128,16 +128,19 @@ abstract class ApiClient {
 
   // Wallet Endpoints
   @POST('/wallets/create')
-  Future<ApiResponse<Wallet>> createWallet();
+  Future<ApiResponse<WalletResponse>> createWallet(@Body() CreateWalletRequest request);
 
   @GET('/wallets/my-wallet')
-  Future<ApiResponse<Wallet>> getMyWallet();
+  Future<ApiResponse<WalletResponse>> getMyWallet();
 
   @GET('/wallets/my-wallet/balance')
   Future<ApiResponse<WalletBalance>> getMyWalletBalance();
 
+  @POST('/wallets/transfer/hbar')
+  Future<ApiResponse<TransferResponse>> transferHbar(@Body() TransferHbarRequest request);
+
   @GET('/wallets/{id}')
-  Future<ApiResponse<Wallet>> getWallet(@Path('id') String id);
+  Future<ApiResponse<WalletResponse>> getWallet(@Path('id') String id);
 
   @GET('/wallets/{id}/balance')
   Future<ApiResponse<WalletBalance>> getWalletBalance(@Path('id') String id);

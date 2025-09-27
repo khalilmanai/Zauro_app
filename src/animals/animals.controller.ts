@@ -28,7 +28,7 @@ export class AnimalsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Create a new animal and mint NFT' })
@@ -70,7 +70,7 @@ export class AnimalsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update animal metadata' })
   @ApiResponse({ status: 200, description: 'Animal updated successfully', type: AnimalResponseDto })
   @ApiResponse({ status: 403, description: 'Forbidden - not your animal' })
@@ -85,7 +85,7 @@ export class AnimalsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Delete animal and burn NFT' })
   @ApiResponse({ status: 200, description: 'Animal deleted and NFT burned successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - not your animal' })
@@ -96,7 +96,7 @@ export class AnimalsController {
 
   @Post(':id/upload-image')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload animal image' })
@@ -111,7 +111,7 @@ export class AnimalsController {
 
   @Post(':id/upload-vet-record')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseInterceptors(FileInterceptor('vetRecord'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload vet record' })
