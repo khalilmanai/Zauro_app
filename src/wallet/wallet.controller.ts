@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Request, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Param, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiParam } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
@@ -6,6 +6,9 @@ import { WalletResponseDto } from './dto/wallet-response.dto';
 import { TransferHbarDto } from './dto/transfer-hbar.dto';
 import { TransferResponseDto } from './dto/transfer-response.dto';
 import { BalanceResponseDto } from './dto/balance-response.dto';
+import { MintNftDto, MintNftResponseDto } from './dto/mint-nft.dto';
+import { TransferNftDto, TransferNftResponseDto } from './dto/transfer-nft.dto';
+import { CreateCollectionDto, CollectionResponseDto, CollectionStatusDto } from './dto/collection.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Wallet')
@@ -114,6 +117,185 @@ export class WalletController {
   })
   async transferHbar(@Body() transferDto: TransferHbarDto, @Request() req: any): Promise<TransferResponseDto> {
     return this.walletService.transferHbar(req.user.id, transferDto.toAccountId, transferDto.amount);
+  }
+
+  // NFT Collection Management
+  @Post('collections')
+  @ApiOperation({ 
+    summary: 'Create a new NFT collection',
+    description: 'Creates a new NFT collection on the Hedera network for minting animal NFTs'
+  })
+  @ApiBody({ 
+    type: CreateCollectionDto,
+    description: 'Collection details including name, symbol, and max supply'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Collection created successfully', 
+    type: CollectionResponseDto 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async createCollection(@Body() createCollectionDto: CreateCollectionDto): Promise<CollectionResponseDto> {
+    return this.walletService.createCollection(createCollectionDto);
+  }
+
+  @Get('collections/status')
+  @ApiOperation({ 
+    summary: 'Get collection status',
+    description: 'Retrieves the current status of the NFT collection including minted count and capacity'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Collection status retrieved successfully', 
+    type: CollectionStatusDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Collection not found' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async getCollectionStatus(): Promise<CollectionStatusDto> {
+    return this.walletService.getCollectionStatus();
+  }
+
+  @Get('collections/nfts')
+  @ApiOperation({ 
+    summary: 'Get all NFTs in collection',
+    description: 'Retrieves all NFTs minted in the current collection'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Collection NFTs retrieved successfully' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async getCollectionNfts(): Promise<any[]> {
+    return this.walletService.getCollectionNfts();
+  }
+
+  // NFT Operations
+  @Post('mint-nft')
+  @ApiOperation({ 
+    summary: 'Mint a new NFT',
+    description: 'Mints a new animal NFT for the authenticated user with provided metadata'
+  })
+  @ApiBody({ 
+    type: MintNftDto,
+    description: 'NFT metadata and optional collection token ID'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'NFT minted successfully', 
+    type: MintNftResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Wallet not found - user has not created a wallet yet' 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Invalid metadata or collection not found' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async mintNft(@Body() mintNftDto: MintNftDto, @Request() req: any): Promise<MintNftResponseDto> {
+    return this.walletService.mintNft(req.user.id, mintNftDto);
+  }
+
+  @Post('transfer-nft')
+  @ApiOperation({ 
+    summary: 'Transfer NFT to another account',
+    description: 'Transfers an NFT from the authenticated user to another Hedera account'
+  })
+  @ApiBody({ 
+    type: TransferNftDto,
+    description: 'Transfer details including token ID, serial number, and recipient account'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'NFT transferred successfully', 
+    type: TransferNftResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Wallet not found or NFT not owned by user' 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Invalid transfer parameters' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async transferNft(@Body() transferNftDto: TransferNftDto, @Request() req: any): Promise<TransferNftResponseDto> {
+    return this.walletService.transferNft(req.user.id, transferNftDto);
+  }
+
+  @Get('my-nfts')
+  @ApiOperation({ 
+    summary: 'Get user NFTs',
+    description: 'Retrieves all NFTs owned by the authenticated user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'User NFTs retrieved successfully' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Wallet not found - user has not created a wallet yet' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async getUserNfts(@Request() req: any): Promise<any[]> {
+    return this.walletService.getUserNfts(req.user.id);
+  }
+
+  @Delete('burn-nft/:tokenId/:serialNumber')
+  @ApiOperation({ 
+    summary: 'Burn an NFT',
+    description: 'Burns (destroys) an NFT permanently from the blockchain'
+  })
+  @ApiParam({
+    name: 'tokenId',
+    description: 'Token ID of the NFT collection',
+    example: '0.0.123456'
+  })
+  @ApiParam({
+    name: 'serialNumber',
+    description: 'Serial number of the NFT to burn',
+    example: '12345'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'NFT burned successfully' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'NFT not found' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async burnNft(
+    @Param('tokenId') tokenId: string, 
+    @Param('serialNumber') serialNumber: string, 
+    @Request() req: any
+  ): Promise<{ transactionHash: string }> {
+    return this.walletService.burnNft(req.user.id, tokenId, serialNumber);
   }
 
   @Get(':id')

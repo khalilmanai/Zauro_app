@@ -445,7 +445,147 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 
 ---
 
-## 🔧 Development & Deployment
+## 🐳 Docker Setup & Deployment
+
+### Quick Start with Docker
+The project is fully containerized and ready for development and production deployment.
+
+#### Prerequisites
+- Docker Desktop installed and running
+- Git (to clone the repository)
+
+#### Development Setup
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd Zauro_app
+   ```
+
+2. **Create environment file**:
+   ```bash
+   cp env.example .env
+   # Edit .env with your configuration values
+   ```
+
+3. **Start all services**:
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Run database migrations**:
+   ```bash
+   docker-compose exec backend npx prisma migrate deploy
+   ```
+
+5. **Access the application**:
+   - Backend API: http://localhost:3000
+   - Hedera Service: http://localhost:3001
+   - API Documentation: http://localhost:3000/api/docs
+   - PostgreSQL: localhost:5432
+
+#### Services Architecture
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   NestJS        │    │   Hedera        │
+│   (Flutter)     │◄──►│   Backend       │◄──►│   Service       │
+│   Port: 3000    │    │   Port: 3000    │    │   Port: 3001    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              │                        │
+                              ▼                        ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │   PostgreSQL    │    │   Hedera        │
+                       │   Port: 5432     │    │   Testnet       │
+                       └─────────────────┘    └─────────────────┘
+                              │
+                              ▼
+                       ┌─────────────────┐
+                       │   Redis         │
+                       │   Port: 6379    │
+                       └─────────────────┘
+```
+
+### Docker Services
+
+#### Backend Service (NestJS)
+- **Port**: 3000
+- **Features**: Full REST API, JWT authentication, Prisma ORM
+- **Health Check**: `/api/v1/health`
+- **Development Mode**: Hot reloading enabled
+
+#### Hedera Service
+- **Port**: 3001
+- **Features**: Blockchain operations, NFT management, wallet creation
+- **Health Check**: `/collection-status`
+- **Auto-collection Management**: Creates new NFT collections automatically
+
+#### PostgreSQL Database
+- **Port**: 5432
+- **Features**: Relational data storage, Prisma migrations
+- **Health Check**: Built-in PostgreSQL health check
+- **Data Persistence**: Docker volume for data persistence
+
+#### Redis Cache
+- **Port**: 6379
+- **Features**: Session storage, caching, rate limiting
+- **Health Check**: Built-in Redis health check
+
+#### Nginx Reverse Proxy
+- **Port**: 80/443
+- **Features**: Load balancing, SSL termination, static file serving
+- **Configuration**: Development and production configs included
+
+### Environment Configuration
+
+#### Required Environment Variables
+```bash
+# Database
+DATABASE_URL="postgresql://zauro_user:zauro_password@postgres:5432/zauro_db"
+POSTGRES_DB="zauro_db"
+POSTGRES_USER="zauro_user"
+POSTGRES_PASSWORD="zauro_password"
+
+# JWT Security
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+JWT_REFRESH_SECRET="your-super-secret-refresh-jwt-key-change-in-production"
+JWT_EXPIRES_IN="15m"
+JWT_REFRESH_EXPIRES_IN="7d"
+
+# Hedera Blockchain
+HEDERA_OPERATOR_ID="0.0.123456"
+HEDERA_OPERATOR_KEY="302e020100300506032b657004220420..."
+HEDERA_NETWORK="testnet"
+HEDERA_MIRROR_NODE_URL="https://testnet.mirrornode.hedera.com"
+HEDERA_SUPPLY_KEY="302e020100300506032b657004220420..."
+HEDERA_COLLECTION_TOKEN_ID="0.0.123456"
+
+# Supabase Storage
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_ANON_KEY="your-supabase-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
+
+# Communication Services
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_SECURE="false"
+SMTP_USER="your-email@gmail.com"
+SMTP_PASS="your-app-password"
+SMTP_FROM="noreply@yourdomain.com"
+
+TWILIO_ACCOUNT_SID="your-twilio-account-sid"
+TWILIO_AUTH_TOKEN="your-twilio-auth-token"
+TWILIO_PHONE_NUMBER="+1234567890"
+
+# Security
+ENCRYPTION_KEY="your-32-character-encryption-key"
+
+# Performance
+THROTTLE_TTL="60"
+THROTTLE_LIMIT="10"
+OTP_EXPIRES_IN_MINUTES="10"
+OTP_LENGTH="6"
+MAX_FILE_SIZE="10485760"
+ALLOWED_FILE_TYPES="image/jpeg,image/png,image/gif,application/pdf"
+```
 
 ### Development Environment
 - **TypeScript**: Full type safety and modern JavaScript features
@@ -466,6 +606,170 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 - **Build Automation**: Automatic build and deployment processes
 - **Database Migration**: Automated schema updates
 - **Environment Promotion**: Staged deployment process
+
+---
+
+## 🔧 Troubleshooting Guide
+
+### Common Issues and Solutions
+
+#### 1. Database Connection Issues
+**Error**: `The table 'public.users' does not exist in the current database`
+
+**Solution**:
+```bash
+# Run database migrations
+docker-compose exec backend npx prisma migrate deploy
+
+# Or reset the database completely
+docker-compose exec backend npx prisma migrate reset
+```
+
+#### 2. Backend Container Won't Start
+**Error**: `Error: Cannot find module '/app/dist/main'`
+
+**Solutions**:
+- Ensure TypeScript config files are copied to container
+- Check if development mode is enabled (`npm run start:dev`)
+- Verify all dependencies are installed
+
+#### 3. Hedera Service Health Check Fails
+**Error**: `container zauro-hedera is unhealthy`
+
+**Solutions**:
+- Check if Hedera credentials are properly set in `.env`
+- Verify Hedera service is responding on port 3001
+- Check Hedera service logs: `docker-compose logs hedera-service`
+
+#### 4. Permission Denied Errors
+**Error**: `EACCES: permission denied, rmdir '/app/dist'`
+
+**Solution**:
+- Ensure proper file ownership in Dockerfile
+- Check if `chown` command is executed before switching users
+
+#### 5. Frontend Connection Issues
+**Error**: Frontend can't connect to backend
+
+**Solutions**:
+- Verify backend is running on port 3000
+- Check if CORS is properly configured
+- Ensure API base URL is correct in frontend config
+
+#### 6. Environment Variable Issues
+**Error**: `The "HEDERA_OPERATOR_ID" variable is not set`
+
+**Solutions**:
+- Create `.env` file from `env.example`
+- Set all required environment variables
+- Restart containers after changing environment variables
+
+### Docker Commands Reference
+
+#### Container Management
+```bash
+# Start all services
+docker-compose up --build
+
+# Start specific service
+docker-compose up backend
+
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
+
+# View logs
+docker-compose logs backend
+docker-compose logs hedera-service
+
+# Execute commands in running container
+docker-compose exec backend npx prisma migrate deploy
+docker-compose exec backend npx prisma studio
+```
+
+#### Database Operations
+```bash
+# Run migrations
+docker-compose exec backend npx prisma migrate deploy
+
+# Reset database
+docker-compose exec backend npx prisma migrate reset
+
+# Generate Prisma client
+docker-compose exec backend npx prisma generate
+
+# Open Prisma Studio
+docker-compose exec backend npx prisma studio
+```
+
+#### Debugging
+```bash
+# Check container status
+docker-compose ps
+
+# Check container health
+docker-compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+
+# View detailed logs
+docker-compose logs -f backend
+
+# Access container shell
+docker-compose exec backend sh
+docker-compose exec postgres psql -U zauro_user -d zauro_db
+```
+
+### Service Health Checks
+
+#### Backend Health Check
+```bash
+curl http://localhost:3000/api/v1/health
+```
+
+#### Hedera Service Health Check
+```bash
+curl http://localhost:3001/collection-status
+```
+
+#### Database Health Check
+```bash
+docker-compose exec postgres pg_isready -U zauro_user -d zauro_db
+```
+
+### Performance Optimization
+
+#### Database Performance
+- Ensure PostgreSQL has sufficient memory allocation
+- Use SSD storage for better I/O performance
+- Monitor slow queries with Prisma logging
+
+#### Container Resource Limits
+```yaml
+# Add to docker-compose.yml services
+services:
+  backend:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+```
+
+### Security Checklist
+
+#### Environment Security
+- [ ] Change all default passwords
+- [ ] Use strong JWT secrets (32+ characters)
+- [ ] Set proper file permissions on `.env`
+- [ ] Use HTTPS in production
+- [ ] Enable CORS properly
+
+#### Database Security
+- [ ] Use strong database passwords
+- [ ] Limit database access to application containers
+- [ ] Enable SSL for database connections
+- [ ] Regular database backups
 
 ---
 

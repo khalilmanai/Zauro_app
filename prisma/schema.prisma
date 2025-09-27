@@ -89,6 +89,25 @@ model Wallet {
   @@map("wallets")
 }
 
+// NFT Collection model
+model NftCollection {
+  id            String   @id @default(cuid())
+  tokenId       String   @unique
+  name          String
+  symbol        String
+  maxSupply     Int      @default(1000000)
+  currentSupply Int      @default(0)
+  supplyKey     String   // Encrypted supply key for minting
+  treasuryAccountId String
+  isActive      Boolean  @default(true)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("nft_collections")
+}
+
 // Animal/NFT model
 model Animal {
   id              String        @id @default(cuid())
@@ -100,10 +119,14 @@ model Animal {
   
   // NFT metadata
   tokenId         String?       @unique
-  tokenSerialNumber String?
+  tokenSerialNumber String?     @unique
   imageUrl        String?
   vetRecordUrl    String?
   aiPredictionValue Decimal?
+  
+  // NFT Collection info
+  collectionId   String?
+  collectionName String?
   
   // Ownership
   ownerId         String

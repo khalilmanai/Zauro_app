@@ -1,0 +1,162 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: zauro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zauro_db
+      POSTGRES_USER: zauro_user
+      POSTGRES_PASSWORD: zauro_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - zauro-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zauro_user -d zauro_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: zauro-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - zauro-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Hedera Blockchain Service
+  hedera-service:
+    build:
+      context: ./Hedera
+      dockerfile: Dockerfile
+    container_name: zauro-hedera
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HEDERA_OPERATOR_ID: ${HEDERA_OPERATOR_ID}
+      HEDERA_OPERATOR_KEY: ${HEDERA_OPERATOR_KEY}
+    ports:
+      - "3001:3001"
+    volumes:
+      - hedera_data:/app/data
+    networks:
+      - zauro-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/collection-status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - postgres
+
+  # NestJS Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zauro-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://zauro_user:zauro_password@postgres:5432/zauro_db
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      HEDERA_SERVICE_URL: ${HEDERA_SERVICE_URL:-http://hedera-service:3001}
+      HEDERA_OPERATOR_ID: ${HEDERA_OPERATOR_ID}
+      HEDERA_OPERATOR_KEY: ${HEDERA_OPERATOR_KEY}
+      HEDERA_NETWORK: ${HEDERA_NETWORK:-testnet}
+      HEDERA_MIRROR_NODE_URL: ${HEDERA_MIRROR_NODE_URL}
+      HEDERA_SUPPLY_KEY: ${HEDERA_SUPPLY_KEY}
+      HEDERA_COLLECTION_TOKEN_ID: ${HEDERA_COLLECTION_TOKEN_ID}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      THROTTLE_TTL: ${THROTTLE_TTL:-60}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-10}
+      OTP_EXPIRES_IN_MINUTES: ${OTP_EXPIRES_IN_MINUTES:-10}
+      OTP_LENGTH: ${OTP_LENGTH:-6}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES}
+    ports:
+      - "3000:3000"
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - zauro-network
+    command: npm run start:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      hedera-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: zauro-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - zauro-network
+    depends_on:
+      - backend
+      - hedera-service
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  hedera_data:
+    driver: local
+  backend_uploads:
+    driver: local
+
+networks:
+  zauro-network:
+    driver: bridge

@@ -81,7 +81,7 @@ export class AnimalsService {
 
         // Mint NFT (using a mock token ID for now)
         const tokenId = '0.0.123456'; // Replace with actual animal NFT token ID
-        const nftResult = await this.hederaService.mintNft(tokenId, metadata, privateKey);
+        const nftResult = await this.hederaService.mintNft(tokenId, metadata, wallet.hederaAccountId, privateKey);
 
         // Update animal with NFT details
         const updatedAnimal = await this.prisma.animal.update({
@@ -242,7 +242,7 @@ export class AnimalsService {
 
         if (wallet) {
           const privateKey = this.encryptionService.decrypt(wallet.encryptedPrivateKey);
-          await this.hederaService.burnNft(animal.tokenId, animal.tokenSerialNumber, privateKey);
+          await this.hederaService.burnNft(animal.tokenId, animal.tokenSerialNumber);
         }
       } catch (error) {
         console.error('NFT burning failed:', error);

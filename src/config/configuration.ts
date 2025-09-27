@@ -36,10 +36,13 @@ export default () => ({
   },
   
   hedera: {
-    accountId: process.env.HEDERA_ACCOUNT_ID,
-    privateKey: process.env.HEDERA_PRIVATE_KEY,
+    serviceUrl: process.env.HEDERA_SERVICE_URL || 'http://localhost:3000',
+    operatorId: process.env.HEDERA_OPERATOR_ID,
+    operatorKey: process.env.HEDERA_OPERATOR_KEY,
     network: process.env.HEDERA_NETWORK || 'testnet',
-    mirrorNodeUrl: process.env.HEDERA_MIRROR_NODE_URL,
+    mirrorNodeUrl: process.env.HEDERA_MIRROR_NODE_URL || 'https://testnet.mirrornode.hedera.com',
+    supplyKey: process.env.HEDERA_SUPPLY_KEY,
+    collectionTokenId: process.env.HEDERA_COLLECTION_TOKEN_ID,
   },
   
   supabase: {

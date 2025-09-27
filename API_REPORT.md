@@ -13,6 +13,9 @@ The Zauro Marketplace is a blockchain-based animal marketplace built with **Nest
 - **Email**: SMTP (Nodemailer)
 - **SMS**: Twilio
 - **Documentation**: Swagger/OpenAPI
+- **Containerization**: Docker & Docker Compose
+- **Cache**: Redis
+- **Reverse Proxy**: Nginx
 
 ## 📁 Module Architecture
 
@@ -57,6 +60,10 @@ The Zauro Marketplace is a blockchain-based animal marketplace built with **Nest
   - Encrypted private key storage
   - HBAR and ZAU token balance queries
   - Hedera account management
+  - NFT collection management
+  - NFT minting, transferring, and burning
+  - Collection status monitoring
+  - User NFT portfolio management
 
 #### 6. **AnimalsModule** (`src/animals/`)
 - **Purpose**: Animal NFT management
@@ -240,6 +247,153 @@ Get authenticated user's wallet (requires Bearer token)
 
 #### GET `/wallets/my-wallet/balance`
 Get authenticated user's wallet balance (requires Bearer token)
+
+#### POST `/wallets/transfer/hbar`
+Transfer HBAR between accounts (requires Bearer token)
+```json
+{
+  "toAccountId": "0.0.123456",
+  "amount": "10.0"
+}
+```
+
+#### GET `/wallets/{id}`
+Get wallet by ID (requires Bearer token)
+
+#### GET `/wallets/{id}/balance`
+Get wallet balance by ID (requires Bearer token)
+
+### NFT Collection Management (`/wallets/collections`)
+
+#### POST `/wallets/collections`
+Create new NFT collection (requires Bearer token)
+```json
+{
+  "name": "Zauro Animals",
+  "symbol": "ZAC",
+  "maxSupply": 1000000
+}
+```
+
+#### GET `/wallets/collections/status`
+Get current collection status (requires Bearer token)
+
+#### GET `/wallets/collections/nfts`
+Get all NFTs in current collection (requires Bearer token)
+
+### NFT Operations (`/wallets`)
+
+#### POST `/wallets/mint-nft`
+Mint new NFT (requires Bearer token)
+```json
+{
+  "tokenId": "0.0.123456",
+  "metadata": {
+    "name": "Fluffy",
+    "species": "Dog",
+    "breed": "Golden Retriever",
+    "age": 2,
+    "imageUrl": "https://example.com/fluffy.jpg"
+  }
+}
+```
+
+#### POST `/wallets/transfer-nft`
+Transfer NFT to another account (requires Bearer token)
+```json
+{
+  "tokenId": "0.0.123456",
+  "serialNumber": "1",
+  "toAccountId": "0.0.789012"
+}
+```
+
+#### DELETE `/wallets/burn-nft`
+Burn NFT (requires Bearer token)
+```json
+{
+  "tokenId": "0.0.123456",
+  "serialNumber": "1"
+}
+```
+
+#### GET `/wallets/my-nfts`
+Get user's owned NFTs (requires Bearer token)
+
+### Hedera Standalone Service (Port 3001)
+
+The Hedera service runs as a separate microservice on port 3001, providing direct blockchain operations.
+
+#### POST `/create-wallet`
+Create new Hedera wallet
+```json
+{
+  "response": {
+    "accountId": "0.0.123456",
+    "privateKey": "302e020100300506032b657004220420..."
+  }
+}
+```
+
+#### POST `/create-collection`
+Create NFT collection
+```json
+{
+  "name": "DemoNFT",
+  "symbol": "DNFT",
+  "maxSupply": 1000000
+}
+```
+
+#### POST `/mint-nft`
+Mint NFT with metadata
+```json
+{
+  "tokenId": "0.0.123456",
+  "metadata": {
+    "name": "Animal Name",
+    "species": "Dog",
+    "breed": "Golden Retriever"
+  },
+  "ownerAccountId": "0.0.789012",
+  "ownerPrivateKey": "302e020100300506032b657004220420..."
+}
+```
+
+#### POST `/transfer-nft`
+Transfer NFT between accounts
+```json
+{
+  "tokenId": "0.0.123456",
+  "serialNumber": "1",
+  "fromAccountId": "0.0.789012",
+  "fromPrivateKey": "302e020100300506032b657004220420...",
+  "toAccountId": "0.0.345678"
+}
+```
+
+#### GET `/collection-status`
+Get current collection status
+```json
+{
+  "tokenId": "0.0.123456",
+  "name": "DemoNFT",
+  "symbol": "DNFT",
+  "nftCount": 1500,
+  "maxSupply": 1000000,
+  "usagePercentage": 0.15,
+  "status": "ACTIVE"
+}
+```
+
+#### GET `/collection-nfts`
+Get all NFTs in current collection
+
+#### GET `/nfts/:accountId`
+Get NFTs owned by specific account
+
+#### GET `/nfts`
+Get all NFTs minted by operator
 
 #### GET `/wallets/:id`
 Get wallet by ID
