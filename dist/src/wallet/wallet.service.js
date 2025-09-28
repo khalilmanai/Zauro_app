@@ -91,6 +91,54 @@ let WalletService = class WalletService {
             include: { user: true },
         });
     }
+    async fundUserAccount(userId, amount, memo) {
+        const wallet = await this.prisma.wallet.findUnique({
+            where: { userId },
+        });
+        if (!wallet) {
+            throw new common_1.NotFoundException('Wallet not found. User must create a wallet first.');
+        }
+        const fundingResult = await this.hederaService.fundAccount(wallet.hederaAccountId, amount, {
+            memo: memo || `Funding for user ${userId}`
+        });
+        return {
+            transactionHash: fundingResult.transactionId,
+        };
+    }
+    async fundHederaAccount(accountId, amount, memo) {
+        const fundingResult = await this.hederaService.fundAccount(accountId, amount, {
+            memo: memo || `Direct funding to account ${accountId}`
+        });
+        return {
+            transactionHash: fundingResult.transactionId,
+        };
+    }
+    async createWalletWithBalance(userId, initialBalance) {
+        const existingWallet = await this.prisma.wallet.findUnique({
+            where: { userId },
+        });
+        if (existingWallet) {
+            throw new common_1.ConflictException('User already has a wallet');
+        }
+        const hederaAccount = await this.hederaService.initializeAccountWithBalance(initialBalance);
+        const encryptedPrivateKey = this.encryptionService.encrypt(hederaAccount.privateKey);
+        const wallet = await this.prisma.wallet.create({
+            data: {
+                userId,
+                hederaAccountId: hederaAccount.accountId,
+                encryptedPrivateKey,
+                publicKey: hederaAccount.publicKey,
+            },
+        });
+        const balance = await this.hederaService.getAccountBalance(hederaAccount.accountId);
+        return {
+            id: wallet.id,
+            hederaAccountId: wallet.hederaAccountId,
+            publicKey: wallet.publicKey,
+            balance,
+            createdAt: wallet.createdAt,
+        };
+    }
 };
 exports.WalletService = WalletService;
 exports.WalletService = WalletService = __decorate([

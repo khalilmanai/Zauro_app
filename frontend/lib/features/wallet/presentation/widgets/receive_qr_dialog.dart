@@ -36,7 +36,7 @@ class ReceiveQrDialog extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.successColor.withOpacity(0.1),
+                    color: AppTheme.successColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(
@@ -62,9 +62,9 @@ class ReceiveQrDialog extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // QR Code
             Container(
               padding: const EdgeInsets.all(16),
@@ -81,12 +81,19 @@ class ReceiveQrDialog extends StatelessWidget {
                 version: QrVersions.auto,
                 size: 200.0,
                 backgroundColor: AppTheme.white,
-                foregroundColor: AppTheme.grey900,
+                eyeStyle: QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: AppTheme.grey900,
+                ),
+                dataModuleStyle: QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: AppTheme.grey900,
+                ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Account ID
             Text(
               'Your Hedera Account ID',
@@ -131,15 +138,15 @@ class ReceiveQrDialog extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Instructions
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.05),
+                color: AppTheme.primaryColor.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -177,9 +184,9 @@ class ReceiveQrDialog extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Action Buttons
             Row(
               children: [

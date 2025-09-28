@@ -45,9 +45,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final authState = ref.watch(authNotifierProvider);
 
     ref.listen(authNotifierProvider, (previous, next) {
-      if (next.isAuthenticated) {
-        context.go('/home');
-      } else if (next.hasError) {
+      if (next.hasError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.error!),

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
   // App Information
   static const String appName = 'Zauro Marketplace';
@@ -5,16 +7,38 @@ class AppConfig {
   static const String appDescription =
       'Blockchain-based Animal Trading Platform';
 
+  // Environment Detection
+  static bool get isProduction => kReleaseMode;
+  static bool get isDevelopment => kDebugMode;
+  static bool get isStaging => kProfileMode;
+
   // API Configuration
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:3000', // Development default
-  );
+  static String get baseUrl {
+    if (isProduction) {
+      return const String.fromEnvironment(
+        'PROD_API_BASE_URL',
+        defaultValue: 'https://api.zauro.com',
+      );
+    } else if (isStaging) {
+      return const String.fromEnvironment(
+        'STAGING_API_BASE_URL',
+        defaultValue: 'https://staging-api.zauro.com',
+      );
+    } else {
+      return const String.fromEnvironment(
+        'DEV_API_BASE_URL',
+        defaultValue: 'http://10.171.0.14:3000',
+      );
+    }
+  }
+
   static const String apiPrefix = '/api/v1';
-  static const String fullApiUrl = '$baseUrl$apiPrefix';
-  
-  // Production Configuration
+  static String get fullApiUrl => '$baseUrl$apiPrefix';
+
+  // Legacy Configuration (deprecated)
+  @Deprecated('Use baseUrl getter instead')
   static const String productionBaseUrl = 'https://api.zauro.com';
+  @Deprecated('Use fullApiUrl getter instead')
   static const String productionApiUrl = '$productionBaseUrl$apiPrefix';
 
   // Endpoints

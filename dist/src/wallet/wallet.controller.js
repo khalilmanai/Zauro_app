@@ -21,6 +21,7 @@ const wallet_response_dto_1 = require("./dto/wallet-response.dto");
 const transfer_hbar_dto_1 = require("./dto/transfer-hbar.dto");
 const transfer_response_dto_1 = require("./dto/transfer-response.dto");
 const balance_response_dto_1 = require("./dto/balance-response.dto");
+const fund_account_dto_1 = require("./dto/fund-account.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 let WalletController = class WalletController {
     walletService;
@@ -45,6 +46,18 @@ let WalletController = class WalletController {
     }
     async getWalletBalance(id) {
         return this.walletService.getWalletBalance(id);
+    }
+    async fundMyAccount(fundDto, req) {
+        return this.walletService.fundUserAccount(req.user.id, fundDto.amount, fundDto.memo);
+    }
+    async fundAccount(fundDto) {
+        if (!fundDto.accountId) {
+            throw new Error('Account ID is required for direct account funding');
+        }
+        return this.walletService.fundHederaAccount(fundDto.accountId, fundDto.amount, fundDto.memo);
+    }
+    async createWalletWithBalance(fundDto, req) {
+        return this.walletService.createWalletWithBalance(req.user.id, fundDto.amount);
     }
 };
 exports.WalletController = WalletController;
@@ -217,6 +230,96 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], WalletController.prototype, "getWalletBalance", null);
+__decorate([
+    (0, common_1.Post)('fund/my-account'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Fund the authenticated user\'s wallet with HBAR',
+        description: 'Funds the authenticated user\'s wallet with HBAR from the operator account. This is useful for topping up user accounts or providing initial funding.'
+    }),
+    (0, swagger_1.ApiBody)({
+        type: fund_account_dto_1.FundAccountDto,
+        description: 'Funding details including amount and optional memo'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Account funding completed successfully',
+        type: transfer_response_dto_1.TransferResponseDto
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: 'Wallet not found - user has not created a wallet yet'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: 'Invalid funding parameters'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 401,
+        description: 'Unauthorized - valid JWT token required'
+    }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [fund_account_dto_1.FundAccountDto, Object]),
+    __metadata("design:returntype", Promise)
+], WalletController.prototype, "fundMyAccount", null);
+__decorate([
+    (0, common_1.Post)('fund/account'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Fund any Hedera account with HBAR',
+        description: 'Funds any Hedera account with HBAR from the operator account. This allows funding accounts that may not be associated with platform users.'
+    }),
+    (0, swagger_1.ApiBody)({
+        type: fund_account_dto_1.FundAccountDto,
+        description: 'Funding details including target account ID, amount, and optional memo'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Account funding completed successfully',
+        type: transfer_response_dto_1.TransferResponseDto
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: 'Invalid funding parameters or account ID'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 401,
+        description: 'Unauthorized - valid JWT token required'
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [fund_account_dto_1.FundAccountDto]),
+    __metadata("design:returntype", Promise)
+], WalletController.prototype, "fundAccount", null);
+__decorate([
+    (0, common_1.Post)('create-with-balance'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Create a new wallet with custom initial HBAR balance',
+        description: 'Creates a new Hedera wallet for the authenticated user with a specified initial HBAR balance. Each user can only have one wallet.'
+    }),
+    (0, swagger_1.ApiBody)({
+        type: fund_account_dto_1.FundAccountDto,
+        description: 'Initial balance amount for the new wallet'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: 'Wallet created successfully with custom initial balance',
+        type: wallet_response_dto_1.WalletResponseDto
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 409,
+        description: 'User already has a wallet - only one wallet per user is allowed'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 401,
+        description: 'Unauthorized - valid JWT token required'
+    }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [fund_account_dto_1.FundAccountDto, Object]),
+    __metadata("design:returntype", Promise)
+], WalletController.prototype, "createWalletWithBalance", null);
 exports.WalletController = WalletController = __decorate([
     (0, swagger_1.ApiTags)('Wallet'),
     (0, common_1.Controller)('wallets'),

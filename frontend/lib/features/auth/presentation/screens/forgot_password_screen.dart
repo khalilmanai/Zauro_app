@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/config/app_config.dart';
 import '../../../shared/presentation/widgets/custom_button.dart';
 import '../../../shared/presentation/widgets/custom_text_field.dart';
 import '../../../shared/presentation/widgets/loading_overlay.dart';
@@ -161,9 +160,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: _useEmail
-                                ? AppTheme.white
-                                : AppTheme.grey600,
+                            color:
+                                _useEmail ? AppTheme.white : AppTheme.grey600,
                           ),
                         ),
                       ),
@@ -187,9 +185,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: !_useEmail
-                                ? AppTheme.white
-                                : AppTheme.grey600,
+                            color:
+                                !_useEmail ? AppTheme.white : AppTheme.grey600,
                           ),
                         ),
                       ),
@@ -274,7 +271,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           style: GoogleFonts.poppins(fontSize: 16, color: AppTheme.grey600),
         ),
         const SizedBox(height: 32),
-
         CustomTextField(
           controller: _otpController,
           label: 'Verification Code',
@@ -291,16 +287,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             return null;
           },
         ),
-
         const SizedBox(height: 24),
-
         SizedBox(
           width: double.infinity,
           child: CustomButton(text: 'Verify Code', onPressed: _handleVerifyOtp),
         ),
-
         const SizedBox(height: 16),
-
         TextButton(
           onPressed: _handleResendCode,
           child: Text(
@@ -427,9 +419,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   void _handleSendCode() {
     if (_formKey.currentState!.validate()) {
-      ref
-          .read(passwordResetNotifierProvider.notifier)
-          .requestPasswordReset(
+      ref.read(passwordResetNotifierProvider.notifier).requestPasswordReset(
             email: _useEmail ? _emailController.text.trim() : null,
             phone: !_useEmail ? _phoneController.text.trim() : null,
           );
@@ -438,9 +428,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   void _handleVerifyOtp() {
     if (_otpController.text.length == 6) {
-      ref
-          .read(passwordResetNotifierProvider.notifier)
-          .verifyOtp(
+      ref.read(passwordResetNotifierProvider.notifier).verifyOtp(
             code: _otpController.text,
             email: _useEmail ? _emailController.text.trim() : null,
             phone: !_useEmail ? _phoneController.text.trim() : null,
@@ -451,9 +439,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   void _handleResetPassword() {
     if (_passwordController.text.isNotEmpty &&
         _passwordController.text == _confirmPasswordController.text) {
-      ref
-          .read(passwordResetNotifierProvider.notifier)
-          .resetPassword(
+      ref.read(passwordResetNotifierProvider.notifier).resetPassword(
             code: _otpController.text,
             newPassword: _passwordController.text,
             email: _useEmail ? _emailController.text.trim() : null,
@@ -463,9 +449,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   void _handleResendCode() {
-    ref
-        .read(passwordResetNotifierProvider.notifier)
-        .requestPasswordReset(
+    ref.read(passwordResetNotifierProvider.notifier).requestPasswordReset(
           email: _useEmail ? _emailController.text.trim() : null,
           phone: !_useEmail ? _phoneController.text.trim() : null,
         );

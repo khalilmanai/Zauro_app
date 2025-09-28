@@ -386,7 +386,7 @@ class ThemeDemoScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+                  '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: textColor,
                         fontFamily: 'monospace',

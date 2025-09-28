@@ -37,7 +37,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     final walletState = ref.watch(walletProvider);
     final balanceState = ref.watch(walletBalanceProvider);
     final hasWallet = ref.watch(hasWalletProvider);
-    
+
     final isLoading = walletState.isLoading || balanceState.isLoading;
 
     return Scaffold(
@@ -70,7 +70,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!hasWallet) 
+                if (!hasWallet)
                   _buildCreateWalletCard()
                 else ...[
                   _buildBalanceCard(balanceState),
@@ -109,7 +109,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(40),
             ),
             child: const Icon(
@@ -189,7 +189,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 'Total Balance',
                 style: GoogleFonts.poppins(
                   fontSize: 16,
-                  color: AppTheme.white.withOpacity(0.9),
+                  color: AppTheme.white.withValues(alpha: 0.9),
                 ),
               ),
               Container(
@@ -198,7 +198,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.white.withOpacity(0.2),
+                  color: AppTheme.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -244,16 +244,19 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             '\$0.00 USD', // TODO: Add USD conversion
             style: GoogleFonts.poppins(
               fontSize: 16,
-              color: AppTheme.white.withOpacity(0.8),
+              color: AppTheme.white.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 16),
           balanceState.when(
             data: (balance) => Row(
               children: [
-                Expanded(child: _buildBalanceItem('HBAR', balance?.hbar ?? '0.00000000')),
+                Expanded(
+                    child: _buildBalanceItem(
+                        'HBAR', balance?.hbar ?? '0.00000000')),
                 const SizedBox(width: 16),
-                Expanded(child: _buildBalanceItem('ZAU', balance?.zau ?? '0.00')),
+                Expanded(
+                    child: _buildBalanceItem('ZAU', balance?.zau ?? '0.00')),
               ],
             ),
             loading: () => Row(
@@ -280,7 +283,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.15),
+        color: AppTheme.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -290,7 +293,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             currency,
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: AppTheme.white.withOpacity(0.8),
+              color: AppTheme.white.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 4),
@@ -361,7 +364,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Icon(icon, color: color, size: 24),

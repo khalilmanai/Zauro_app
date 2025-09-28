@@ -2,6 +2,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { HederaService } from './services/hedera.service';
 import { EncryptionService } from './services/encryption.service';
 import { WalletResponseDto } from './dto/wallet-response.dto';
+import { TransferResponseDto } from './dto/transfer-response.dto';
 export declare class WalletService {
     private prisma;
     private hederaService;
@@ -13,12 +14,12 @@ export declare class WalletService {
         hbar: string;
         zau: string;
     }>;
-    transferHbar(userId: string, toAccountId: string, amount: string): Promise<{
-        transactionHash: string;
-    }>;
+    transferHbar(userId: string, toAccountId: string, amount: string): Promise<TransferResponseDto>;
     getWalletByAccountId(accountId: string): Promise<({
         user: {
             id: string;
+            createdAt: Date;
+            updatedAt: Date;
             email: string;
             phone: string | null;
             password: string;
@@ -27,17 +28,18 @@ export declare class WalletService {
             role: import("@prisma/client").$Enums.UserRole;
             isActive: boolean;
             isVerified: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             lastLoginAt: Date | null;
         };
     } & {
+        publicKey: string;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        userId: string;
         hederaAccountId: string;
         encryptedPrivateKey: string;
-        publicKey: string;
-        userId: string;
+        createdAt: Date;
+        updatedAt: Date;
     }) | null>;
+    fundUserAccount(userId: string, amount: string, memo?: string): Promise<TransferResponseDto>;
+    fundHederaAccount(accountId: string, amount: string, memo?: string): Promise<TransferResponseDto>;
+    createWalletWithBalance(userId: string, initialBalance: string): Promise<WalletResponseDto>;
 }

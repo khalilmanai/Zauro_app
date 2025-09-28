@@ -27,7 +27,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
   final _formKey = GlobalKey<FormState>();
   final _toAccountController = TextEditingController();
   final _amountController = TextEditingController();
-  
+
   bool _isLoading = false;
 
   @override
@@ -62,7 +62,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Icon(
@@ -88,9 +88,9 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Current Balance
               Container(
                 width: double.infinity,
@@ -143,9 +143,9 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Recipient Account ID
               Text(
                 'Recipient Account ID',
@@ -158,14 +158,14 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
               const SizedBox(height: 8),
               CustomTextField(
                 controller: _toAccountController,
-                hintText: '0.0.123456',
+                hint: '0.0.123456',
                 keyboardType: TextInputType.text,
                 validator: _validateAccountId,
                 prefixIcon: Icons.account_balance_wallet,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Amount
               Text(
                 'Amount (HBAR)',
@@ -178,23 +178,25 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
               const SizedBox(height: 8),
               CustomTextField(
                 controller: _amountController,
-                hintText: '0.00000000',
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                hint: '0.00000000',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 validator: _validateAmount,
                 prefixIcon: Icons.monetization_on,
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,8}')),
                 ],
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Action Buttons
               Row(
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                      onPressed:
+                          _isLoading ? null : () => Navigator.of(context).pop(),
                       child: Text(
                         'Cancel',
                         style: GoogleFonts.poppins(
@@ -226,18 +228,18 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
     if (value == null || value.isEmpty) {
       return 'Please enter recipient account ID';
     }
-    
+
     // Validate Hedera account ID format (0.0.123456)
     final regex = RegExp(r'^0\.0\.[0-9]+$');
     if (!regex.hasMatch(value)) {
       return 'Invalid account ID format (use 0.0.123456)';
     }
-    
+
     // Can't send to self
     if (value == widget.wallet.hederaAccountId) {
       return 'Cannot send to your own account';
     }
-    
+
     return null;
   }
 
@@ -245,32 +247,32 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
     if (value == null || value.isEmpty) {
       return 'Please enter amount';
     }
-    
+
     final amount = double.tryParse(value);
     if (amount == null || amount <= 0) {
       return 'Please enter a valid amount';
     }
-    
+
     // Check against available balance
     final balance = ref.read(walletBalanceProvider).value;
     if (balance != null && amount > balance.hbarBalance) {
       return 'Insufficient balance';
     }
-    
+
     return null;
   }
 
   Future<void> _transferHbar() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       await ref.read(transferProvider.notifier).transferHbar(
-        toAccountId: _toAccountController.text.trim(),
-        amount: _amountController.text.trim(),
-      );
-      
+            toAccountId: _toAccountController.text.trim(),
+            amount: _amountController.text.trim(),
+          );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

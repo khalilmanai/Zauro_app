@@ -60,7 +60,7 @@ class ProfileScreen extends ConsumerWidget {
         children: [
           CircleAvatar(
             radius: 40,
-            backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+            backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
             child: Text(
               name.isNotEmpty ? name[0].toUpperCase() : 'U',
               style: GoogleFonts.poppins(
@@ -88,7 +88,7 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: AppTheme.successColor.withOpacity(0.1),
+              color: AppTheme.successColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(

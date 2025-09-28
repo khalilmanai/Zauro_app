@@ -102,7 +102,7 @@ class WalletBalance {
 
   String get formattedHbarBalance => '${hbarBalance.toStringAsFixed(8)} HBAR';
   String get formattedZauBalance => '${zauBalance.toStringAsFixed(2)} ZAU';
-  String get formattedTotalBalance => '${totalBalance.toStringAsFixed(8)}';
+  String get formattedTotalBalance => totalBalance.toStringAsFixed(8);
 }
 
 // Transaction Model

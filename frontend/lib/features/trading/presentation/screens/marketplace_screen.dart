@@ -114,7 +114,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       onSelected: (selected) {
         // TODO: Implement filter logic
       },
-      selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+      selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
       checkmarkColor: AppTheme.primaryColor,
       labelStyle: GoogleFonts.poppins(
         fontSize: 14,
@@ -132,20 +132,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       return _buildEmptyState();
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.8,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: 0, // TODO: Use actual listing count
-      itemBuilder: (context, index) {
-        // TODO: Return TradeCard widget
-        return const SizedBox.shrink();
-      },
-    );
+    // TODO: Implement when marketplace data is available
+    return _buildEmptyState();
   }
 
   Widget _buildEmptyState() {

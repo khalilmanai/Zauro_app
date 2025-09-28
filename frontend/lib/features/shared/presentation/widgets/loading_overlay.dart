@@ -23,20 +23,24 @@ class LoadingOverlay extends StatelessWidget {
         child,
         if (isLoading)
           Container(
-            color: backgroundColor ?? Colors.black.withOpacity(0.3),
+            color: backgroundColor ?? Colors.black.withValues(alpha: 0.3),
             child: Center(
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppTheme.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppTheme.mediumShadow,
+                  border: Border.all(
+                    color: AppTheme.getBorderColor(context),
+                    width: 1,
+                  ),
+                  boxShadow: AppTheme.getContextShadow(context),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircularProgressIndicator(
-                      color: AppTheme.primaryColor,
+                    CircularProgressIndicator(
+                      color: AppTheme.getPrimaryColor(context),
                       strokeWidth: 3,
                     ),
                     if (message != null) ...[
@@ -44,10 +48,7 @@ class LoadingOverlay extends StatelessWidget {
                       Text(
                         message!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.grey700,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
                   ],
@@ -75,8 +76,8 @@ class LoadingWidget extends StatelessWidget {
           SizedBox(
             width: size,
             height: size,
-            child: const CircularProgressIndicator(
-              color: AppTheme.primaryColor,
+            child: CircularProgressIndicator(
+              color: AppTheme.getPrimaryColor(context),
               strokeWidth: 3,
             ),
           ),
@@ -85,7 +86,7 @@ class LoadingWidget extends StatelessWidget {
             Text(
               message!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: AppTheme.grey600),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ],
@@ -142,14 +143,21 @@ class _ShimmerWidgetState extends State<ShimmerWidget>
       builder: (context, child) {
         return ShaderMask(
           shaderCallback: (bounds) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: const [
-                AppTheme.grey200,
-                AppTheme.grey100,
-                AppTheme.grey200,
-              ],
+              colors: isDark
+                  ? [
+                      AppTheme.darkMuted,
+                      AppTheme.darkSecondary,
+                      AppTheme.darkMuted,
+                    ]
+                  : [
+                      AppTheme.grey200,
+                      AppTheme.grey100,
+                      AppTheme.grey200,
+                    ],
               stops: [
                 _animation.value - 0.3,
                 _animation.value,

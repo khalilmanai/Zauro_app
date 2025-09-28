@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.zauro_marketplace"
+    namespace = "com.zauro.marketplace"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,21 +21,49 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.zauro_marketplace"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        applicationId = "com.zauro.marketplace"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Enable multidex for large apps
+        multiDexEnabled = true
+        
+        // Add proguard configuration
+        proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+    }
+
+    signingConfigs {
+        create("release") {
+            // These should be set via environment variables or gradle.properties
+            // Example: ZAURO_KEYSTORE_PATH, ZAURO_KEYSTORE_PASSWORD, etc.
+            storeFile = file(System.getenv("ZAURO_KEYSTORE_PATH") ?: "keystore/release.jks")
+            storePassword = System.getenv("ZAURO_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ZAURO_KEY_ALIAS")
+            keyPassword = System.getenv("ZAURO_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            
+            // Use release signing config if available, otherwise fall back to debug
+            signingConfig = if (System.getenv("ZAURO_KEYSTORE_PATH") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

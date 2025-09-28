@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../utils/storage_service.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -16,6 +17,9 @@ import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // Watch auth state to make router reactive
+  ref.watch(authNotifierProvider);
+
   return GoRouter(
     initialLocation: _getInitialRoute(),
     routes: [
@@ -82,7 +86,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) {
-      return _handleRedirect(state.fullPath ?? '/');
+      return _handleRedirect(ref, state.fullPath ?? '/');
     },
   );
 });
@@ -101,9 +105,9 @@ String _getInitialRoute() {
   return '/login';
 }
 
-String? _handleRedirect(String location) {
+String? _handleRedirect(Ref ref, String location) {
   final isOnboardingCompleted = StorageService.isOnboardingCompleted();
-  final user = StorageService.getUserData();
+  final authState = ref.read(authNotifierProvider);
 
   // If onboarding not completed, redirect to onboarding
   if (!isOnboardingCompleted && location != '/onboarding') {
@@ -111,12 +115,12 @@ String? _handleRedirect(String location) {
   }
 
   // If user is not authenticated and trying to access protected routes
-  if (user == null && _isProtectedRoute(location)) {
+  if (!authState.isAuthenticated && _isProtectedRoute(location)) {
     return '/login';
   }
 
   // If user is authenticated and trying to access auth routes
-  if (user != null && _isAuthRoute(location)) {
+  if (authState.isAuthenticated && _isAuthRoute(location)) {
     return '/home';
   }
 

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:retrofit/retrofit.dart';
 
@@ -27,13 +28,17 @@ final dioProvider = Provider<Dio>((ref) {
 
   // Add interceptors
   dio.interceptors.add(AuthInterceptor());
-  dio.interceptors.add(
-    LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (object) => print(object),
-    ),
-  );
+  dio.interceptors.add(ResponseTransformInterceptor());
+  // Only add logging in debug mode
+  if (kDebugMode) {
+    dio.interceptors.add(
+      LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        logPrint: (object) => debugPrint(object.toString()),
+      ),
+    );
+  }
 
   return dio;
 });
@@ -128,7 +133,8 @@ abstract class ApiClient {
 
   // Wallet Endpoints
   @POST('/wallets/create')
-  Future<ApiResponse<WalletResponse>> createWallet(@Body() CreateWalletRequest request);
+  Future<ApiResponse<WalletResponse>> createWallet(
+      @Body() CreateWalletRequest request);
 
   @GET('/wallets/my-wallet')
   Future<ApiResponse<WalletResponse>> getMyWallet();
@@ -137,13 +143,42 @@ abstract class ApiClient {
   Future<ApiResponse<WalletBalance>> getMyWalletBalance();
 
   @POST('/wallets/transfer/hbar')
-  Future<ApiResponse<TransferResponse>> transferHbar(@Body() TransferHbarRequest request);
+  Future<ApiResponse<TransferResponse>> transferHbar(
+      @Body() TransferHbarRequest request);
 
   @GET('/wallets/{id}')
   Future<ApiResponse<WalletResponse>> getWallet(@Path('id') String id);
 
   @GET('/wallets/{id}/balance')
   Future<ApiResponse<WalletBalance>> getWalletBalance(@Path('id') String id);
+}
+
+// Response Transform Interceptor
+class ResponseTransformInterceptor extends Interceptor {
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    // Transform direct auth responses to ApiResponse format
+    if (response.requestOptions.path.contains('/auth/') &&
+        response.data is Map<String, dynamic>) {
+      final data = response.data as Map<String, dynamic>;
+
+      // Check if response is already in ApiResponse format
+      if (!data.containsKey('success') && !data.containsKey('message')) {
+        // Check if it's an auth response (has accessToken and user)
+        if (data.containsKey('accessToken') && data.containsKey('user')) {
+          // Transform to ApiResponse format
+          response.data = {
+            'success': true,
+            'message': 'Authentication successful',
+            'data': data,
+            'timestamp': DateTime.now().toIso8601String(),
+          };
+        }
+      }
+    }
+
+    handler.next(response);
+  }
 }
 
 // Auth Interceptor

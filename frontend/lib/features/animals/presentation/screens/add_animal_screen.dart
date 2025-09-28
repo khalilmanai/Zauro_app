@@ -136,7 +136,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: const Icon(
@@ -189,7 +189,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
 
         // Species Dropdown
         DropdownButtonFormField<String>(
-          value: _selectedSpecies,
+          initialValue: _selectedSpecies,
           decoration: InputDecoration(
             labelText: 'Species',
             hintText: 'Select species',
@@ -226,9 +226,9 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
               value: species,
               child: Text(
                 species.toLowerCase().replaceFirst(
-                  species[0],
-                  species[0].toUpperCase(),
-                ),
+                      species[0],
+                      species[0].toUpperCase(),
+                    ),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: AppTheme.grey900,
@@ -308,7 +308,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(

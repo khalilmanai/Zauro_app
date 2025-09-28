@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
@@ -33,6 +32,8 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = backgroundColor ?? AppTheme.getPrimaryColor(context);
+
     if (isOutlined) {
       return SizedBox(
         width: width,
@@ -41,14 +42,13 @@ class CustomButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
             side: BorderSide(
-              color: backgroundColor ?? AppTheme.primaryColor,
+              color: primaryColor,
               width: 1.5,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(borderRadius),
             ),
-            padding:
-                padding ??
+            padding: padding ??
                 const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           ),
           child: isLoading
@@ -57,7 +57,7 @@ class CustomButton extends StatelessWidget {
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: backgroundColor ?? AppTheme.primaryColor,
+                    color: primaryColor,
                   ),
                 )
               : Row(
@@ -67,14 +67,10 @@ class CustomButton extends StatelessWidget {
                     if (icon != null) ...[icon!, const SizedBox(width: 8)],
                     Text(
                       text,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color:
-                            textColor ??
-                            backgroundColor ??
-                            AppTheme.primaryColor,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: textColor ?? primaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ],
                 ),
@@ -88,25 +84,24 @@ class CustomButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? AppTheme.primaryColor,
-          foregroundColor: textColor ?? AppTheme.white,
+          backgroundColor: primaryColor,
+          foregroundColor: textColor ?? Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius),
           ),
-          padding:
-              padding ??
+          padding: padding ??
               const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          disabledBackgroundColor: AppTheme.grey300,
+          disabledBackgroundColor: Theme.of(context).disabledColor,
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: AppTheme.white,
+                  color: textColor ?? Colors.white,
                 ),
               )
             : Row(
@@ -116,11 +111,10 @@ class CustomButton extends StatelessWidget {
                   if (icon != null) ...[icon!, const SizedBox(width: 8)],
                   Text(
                     text,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: textColor ?? AppTheme.white,
-                    ),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: textColor ?? Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
               ),
@@ -155,12 +149,20 @@ class CustomIconButton extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: backgroundColor ?? AppTheme.grey100,
+        color: backgroundColor ?? AppTheme.getMutedColor(context),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.getBorderColor(context),
+          width: 1,
+        ),
       ),
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(icon, size: iconSize, color: iconColor ?? AppTheme.grey700),
+        icon: Icon(
+          icon,
+          size: iconSize,
+          color: iconColor ?? Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
         tooltip: tooltip,
       ),
     );
@@ -187,8 +189,8 @@ class CustomFloatingActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: onPressed,
-      backgroundColor: backgroundColor ?? AppTheme.primaryColor,
-      foregroundColor: foregroundColor ?? AppTheme.white,
+      backgroundColor: backgroundColor ?? AppTheme.getPrimaryColor(context),
+      foregroundColor: foregroundColor ?? Colors.white,
       elevation: 4,
       tooltip: tooltip,
       child: Icon(icon, size: 28),

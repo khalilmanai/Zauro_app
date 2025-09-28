@@ -103,8 +103,7 @@ class CustomTextField extends StatelessWidget {
                 ? Icon(prefixIcon, color: AppTheme.grey500, size: 20)
                 : null,
             suffixIcon: suffixIcon,
-            contentPadding:
-                contentPadding ??
+            contentPadding: contentPadding ??
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -179,8 +178,7 @@ class CustomSearchField extends StatelessWidget {
             color: AppTheme.grey500,
             size: 20,
           ),
-          suffixIcon:
-              showClearButton &&
+          suffixIcon: showClearButton &&
                   controller != null &&
                   controller!.text.isNotEmpty
               ? IconButton(
@@ -244,7 +242,7 @@ class CustomDropdownField<T> extends StatelessWidget {
           const SizedBox(height: 8),
         ],
         DropdownButtonFormField<T>(
-          value: value,
+          initialValue: value,
           items: items,
           onChanged: onChanged,
           validator: validator,

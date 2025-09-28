@@ -1,0 +1,5 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#4F46E5" rx="20"/>
+  <text x="100" y="120" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">ZAURO</text>
+  <text x="100" y="150" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">Marketplace</text>
+</svg>

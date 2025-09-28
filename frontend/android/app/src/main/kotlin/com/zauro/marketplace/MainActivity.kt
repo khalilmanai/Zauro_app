@@ -1,4 +1,4 @@
-package com.example.zauro_marketplace
+package com.zauro.marketplace
 
 import io.flutter.embedding.android.FlutterActivity
 

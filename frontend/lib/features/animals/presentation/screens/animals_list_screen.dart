@@ -127,7 +127,7 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
       onSelected: (selected) {
         // TODO: Implement filter logic
       },
-      selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+      selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
       checkmarkColor: AppTheme.primaryColor,
       labelStyle: GoogleFonts.poppins(
         fontSize: 14,
@@ -145,14 +145,8 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
       return _buildEmptyState();
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 0, // TODO: Use actual animal count
-      itemBuilder: (context, index) {
-        // TODO: Return AnimalCard widget
-        return const SizedBox.shrink();
-      },
-    );
+    // TODO: Implement when animals data is available
+    return _buildEmptyState();
   }
 
   Widget _buildEmptyState() {

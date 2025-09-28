@@ -6,6 +6,7 @@ import { WalletResponseDto } from './dto/wallet-response.dto';
 import { TransferHbarDto } from './dto/transfer-hbar.dto';
 import { TransferResponseDto } from './dto/transfer-response.dto';
 import { BalanceResponseDto } from './dto/balance-response.dto';
+import { FundAccountDto } from './dto/fund-account.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Wallet')
@@ -171,5 +172,90 @@ export class WalletController {
   async getWalletBalance(@Param('id') id: string): Promise<BalanceResponseDto> {
     // TODO: Add authorization logic to ensure users can only access their own wallets
     return this.walletService.getWalletBalance(id);
+  }
+
+  @Post('fund/my-account')
+  @ApiOperation({ 
+    summary: 'Fund the authenticated user\'s wallet with HBAR',
+    description: 'Funds the authenticated user\'s wallet with HBAR from the operator account. This is useful for topping up user accounts or providing initial funding.'
+  })
+  @ApiBody({ 
+    type: FundAccountDto,
+    description: 'Funding details including amount and optional memo'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Account funding completed successfully', 
+    type: TransferResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Wallet not found - user has not created a wallet yet' 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Invalid funding parameters' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async fundMyAccount(@Body() fundDto: FundAccountDto, @Request() req: any): Promise<TransferResponseDto> {
+    return this.walletService.fundUserAccount(req.user.id, fundDto.amount, fundDto.memo);
+  }
+
+  @Post('fund/account')
+  @ApiOperation({ 
+    summary: 'Fund any Hedera account with HBAR',
+    description: 'Funds any Hedera account with HBAR from the operator account. This allows funding accounts that may not be associated with platform users.'
+  })
+  @ApiBody({ 
+    type: FundAccountDto,
+    description: 'Funding details including target account ID, amount, and optional memo'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Account funding completed successfully', 
+    type: TransferResponseDto 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Invalid funding parameters or account ID' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async fundAccount(@Body() fundDto: FundAccountDto): Promise<TransferResponseDto> {
+    if (!fundDto.accountId) {
+      throw new Error('Account ID is required for direct account funding');
+    }
+    return this.walletService.fundHederaAccount(fundDto.accountId, fundDto.amount, fundDto.memo);
+  }
+
+  @Post('create-with-balance')
+  @ApiOperation({ 
+    summary: 'Create a new wallet with custom initial HBAR balance',
+    description: 'Creates a new Hedera wallet for the authenticated user with a specified initial HBAR balance. Each user can only have one wallet.'
+  })
+  @ApiBody({ 
+    type: FundAccountDto,
+    description: 'Initial balance amount for the new wallet'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Wallet created successfully with custom initial balance', 
+    type: WalletResponseDto 
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: 'User already has a wallet - only one wallet per user is allowed' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - valid JWT token required' 
+  })
+  async createWalletWithBalance(@Body() fundDto: FundAccountDto, @Request() req: any): Promise<WalletResponseDto> {
+    return this.walletService.createWalletWithBalance(req.user.id, fundDto.amount);
   }
 }

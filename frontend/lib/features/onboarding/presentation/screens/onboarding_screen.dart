@@ -92,7 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: item.color.withOpacity(0.1),
+              color: item.color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(60),
             ),
             child: Icon(item.icon, size: 60, color: item.color),
@@ -150,9 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 )
               else
                 const Spacer(),
-
               const SizedBox(width: 16),
-
               Expanded(
                 child: CustomButton(
                   text: _currentPage == _items.length - 1

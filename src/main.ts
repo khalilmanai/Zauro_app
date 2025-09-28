@@ -6,8 +6,15 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS
-  app.enableCors();
+
+// Enable CORS
+app.enableCors({
+  origin: 'http://localhost:3002',
+  credentials: true,
+});
+
+  // Set global API prefix
+  app.setGlobalPrefix('api/v1');
 
   // Global validation pipe
   app.useGlobalPipes(new ValidationPipe({
@@ -43,7 +50,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   
   // Enhanced Swagger UI options
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true, // Keep authorization after page refresh
       tagsSorter: 'alpha',
@@ -68,6 +75,7 @@ async function bootstrap() {
   await app.listen(port);
   
   console.log(`🚀 Zauro Backend is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  console.log(`📚 API Documentation: http://localhost:${port}/docs`);
+  console.log(`🔗 API Base URL: http://localhost:${port}/api/v1`);
 }
 bootstrap();
