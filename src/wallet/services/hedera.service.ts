@@ -10,6 +10,11 @@ import {
   TransferTransaction,
   TokenMintTransaction,
   TokenBurnTransaction,
+  TokenAssociateTransaction,
+  TokenType,
+  TokenSupplyType,
+  TokenCreateTransaction,
+  TokenInfoQuery,
   Hbar,
   Status,
   TransactionResponse,
@@ -41,6 +46,77 @@ export class HederaService {
     this.operatorAccountId = AccountId.fromString(config.accountId);
     this.operatorPrivateKey = PrivateKey.fromString(config.privateKey);
     this.initializeClient(config);
+  }
+
+  /** Get token total supply and max supply (if finite) */
+  async getTokenInfo(tokenId: string): Promise<{ totalSupply: number; maxSupply?: number }> {
+    try {
+      const info = await new TokenInfoQuery().setTokenId(TokenId.fromString(tokenId)).execute(this.client);
+      const totalSupply = Number(info.totalSupply?.toString?.() || info.totalSupply);
+      const maxSupply = info.maxSupply != null ? Number(info.maxSupply) : undefined;
+      return { totalSupply, maxSupply };
+    } catch (error) {
+      this.logger.error('Failed to get token info:', error);
+      throw new InternalServerErrorException(`Token info failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Creates a new Hedera NFT collection (HTS token)
+   * Returns tokenId and transactionId. Requires operator to have admin & supply capabilities.
+   */
+  async createNftCollection(params: {
+    name: string;
+    symbol: string;
+    treasuryAccountId?: string; // default operator account
+    memo?: string;
+    maxSupply?: number; // optional; if provided, sets finite supply
+  }): Promise<{ tokenId: string; transactionId: string }> {
+    const { name, symbol, treasuryAccountId, memo, maxSupply } = params;
+
+    try {
+      const treasury = AccountId.fromString(
+        treasuryAccountId || this.operatorAccountId.toString(),
+      );
+
+      const tx = new TokenCreateTransaction()
+        .setTokenName(name)
+        .setTokenSymbol(symbol)
+        .setTokenType(TokenType.NonFungibleUnique)
+        .setTreasuryAccountId(treasury)
+        .setSupplyKey(this.operatorPrivateKey)
+        .setAdminKey(this.operatorPrivateKey)
+        .setFreezeDefault(false)
+        .setMaxTransactionFee(new Hbar(5));
+
+      if (memo) {
+        tx.setTokenMemo(memo);
+      }
+
+      if (typeof maxSupply === 'number' && maxSupply > 0) {
+        tx.setSupplyType(TokenSupplyType.Finite).setMaxSupply(maxSupply);
+      } else {
+        tx.setSupplyType(TokenSupplyType.Infinite);
+      }
+
+      // Don't freeze - let the client handle timing
+      const resp = await tx.execute(this.client);
+      const receipt = await resp.getReceipt(this.client);
+
+      if (!receipt.tokenId) {
+        throw new Error('Token creation failed - no token ID in receipt');
+      }
+
+      const tokenId = receipt.tokenId.toString();
+      const transactionId = resp.transactionId.toString();
+
+      this.logger.log(`Created NFT collection ${name} (${symbol}) → ${tokenId}`);
+
+      return { tokenId, transactionId };
+    } catch (error) {
+      this.logger.error('Failed to create NFT collection:', error);
+      throw new InternalServerErrorException(`Token creation failed: ${error.message}`);
+    }
   }
 
   /**
@@ -84,6 +160,9 @@ export class HederaService {
       
       // Set default transaction fee if needed
       this.client.setDefaultMaxTransactionFee(new Hbar(2));
+      
+      // Set request timeout to handle network delays
+      this.client.setRequestTimeout(30000); // 30 seconds
       
       this.logger.log(`Hedera client initialized for ${config.network} network with operator ${config.accountId}`);
     } catch (error) {
@@ -311,7 +390,7 @@ export class HederaService {
     }
   }
 
-  async mintNft(tokenId: string, metadata: string, privateKey: string): Promise<{ serialNumber: string; transactionHash: string }> {
+  async mintNft(tokenId: string, metadata: string, privateKey: string, recipientAccountId?: string): Promise<{ serialNumber: string; transactionHash: string }> {
     try {
       const token = TokenId.fromString(tokenId);
       const signerPrivateKey = PrivateKey.fromString(privateKey);
@@ -320,10 +399,13 @@ export class HederaService {
       const tx = new TokenMintTransaction()
         .setTokenId(token)
         .setMetadata([Buffer.from(metadata)]) // Convert metadata to buffer
-        .freezeWith(this.client);
+        .setMaxTransactionFee(new Hbar(5)); // Increased fee for minting
+
+      // Freeze the transaction
+      const frozenTx = tx.freezeWith(this.client);
 
       // Sign the transaction with the token's supply key
-      const signTx = await tx.sign(signerPrivateKey);
+      const signTx = await frozenTx.sign(signerPrivateKey);
       
       // Execute the transaction
       const submitTx = await signTx.execute(this.client);
@@ -340,7 +422,17 @@ export class HederaService {
       const serialNumber = receipt.serials[0].toString();
       const transactionId = submitTx.transactionId.toString();
       
-      this.logger.log(`Successfully minted NFT: Token ${tokenId}, Serial ${serialNumber}. Transaction ID: ${transactionId}`);
+      // If recipient is specified, associate and transfer the NFT to them
+      if (recipientAccountId) {
+        this.logger.log(`Associating token ${tokenId} with recipient: ${recipientAccountId}`);
+        await this.associateTokenWithAccount(tokenId, recipientAccountId, privateKey);
+        
+        this.logger.log(`Transferring NFT to recipient: ${recipientAccountId}`);
+        await this.transferNft(tokenId, serialNumber, this.operatorAccountId.toString(), recipientAccountId, privateKey);
+        this.logger.log(`Successfully minted and transferred NFT: Token ${tokenId}, Serial ${serialNumber} to ${recipientAccountId}. Transaction ID: ${transactionId}`);
+      } else {
+        this.logger.log(`Successfully minted NFT: Token ${tokenId}, Serial ${serialNumber} to treasury. Transaction ID: ${transactionId}`);
+      }
       
       return {
         serialNumber,
@@ -348,6 +440,85 @@ export class HederaService {
       };
     } catch (error) {
       this.logger.error('Failed to mint NFT:', error);
+      throw error;
+    }
+  }
+
+  async associateTokenWithAccount(tokenId: string, accountId: string, privateKey: string): Promise<string> {
+    try {
+      this.logger.log(`Associating token ${tokenId} with account ${accountId}`);
+      
+      const token = TokenId.fromString(tokenId);
+      const account = AccountId.fromString(accountId);
+      const signerPrivateKey = PrivateKey.fromString(privateKey);
+
+      // Create token association transaction
+      const tx = new TokenAssociateTransaction()
+        .setAccountId(account)
+        .setTokenIds([token])
+        .setMaxTransactionFee(new Hbar(5));
+
+      // Freeze the transaction
+      const frozenTx = tx.freezeWith(this.client);
+
+      // Sign the transaction
+      const signTx = await frozenTx.sign(signerPrivateKey);
+      
+      // Execute the transaction
+      const submitTx = await signTx.execute(this.client);
+      const receipt = await submitTx.getReceipt(this.client);
+      
+      if (receipt.status.toString() !== 'SUCCESS') {
+        throw new Error(`Token association failed with status: ${receipt.status.toString()}`);
+      }
+      
+      const transactionId = submitTx.transactionId.toString();
+      
+      this.logger.log(`Successfully associated token ${tokenId} with account ${accountId}. Transaction ID: ${transactionId}`);
+      
+      return transactionId;
+    } catch (error) {
+      this.logger.error('Failed to associate token with account:', error);
+      throw error;
+    }
+  }
+
+  async transferNft(tokenId: string, serialNumber: string, fromAccountId: string, toAccountId: string, privateKey: string): Promise<string> {
+    try {
+      this.logger.log(`Transferring NFT: Token ${tokenId}, Serial ${serialNumber} from ${fromAccountId} to ${toAccountId}`);
+      
+      const token = TokenId.fromString(tokenId);
+      const fromAccount = AccountId.fromString(fromAccountId);
+      const toAccount = AccountId.fromString(toAccountId);
+      const serial = parseInt(serialNumber, 10);
+      const signerPrivateKey = PrivateKey.fromString(privateKey);
+
+      // Create NFT transfer transaction
+      const tx = new TransferTransaction()
+        .addNftTransfer(token, serial, fromAccount, toAccount)
+        .setMaxTransactionFee(new Hbar(5));
+
+      // Freeze the transaction
+      const frozenTx = tx.freezeWith(this.client);
+
+      // Sign the transaction
+      const signTx = await frozenTx.sign(signerPrivateKey);
+      
+      // Execute the transaction
+      const submitTx = await signTx.execute(this.client);
+      const receipt = await submitTx.getReceipt(this.client);
+      
+      if (receipt.status.toString() !== 'SUCCESS') {
+        throw new Error(`NFT transfer failed with status: ${receipt.status.toString()}`);
+      }
+      
+      const transactionId = submitTx.transactionId.toString();
+      
+      this.logger.log(`Successfully transferred NFT: Token ${tokenId}, Serial ${serialNumber} from ${fromAccountId} to ${toAccountId}. Transaction ID: ${transactionId}`);
+      
+      return transactionId;
+    } catch (error) {
+      this.logger.error('Failed to transfer NFT:', error);
       throw error;
     }
   }

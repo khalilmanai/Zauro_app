@@ -1,13 +1,16 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { HederaService } from '../wallet/services/hedera.service';
 import { EncryptionService } from '../wallet/services/encryption.service';
+import { CollectionsService } from '../collections/collections.service';
 import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
 import { AnimalResponseDto } from './dto/animal-response.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { AnimalSpecies } from '@prisma/client';
+import { createAnimalNftMetadata } from '../common/utils/nft-metadata.util';
 
 @Injectable()
 export class AnimalsService {
@@ -16,6 +19,8 @@ export class AnimalsService {
     private supabaseService: SupabaseService,
     private hederaService: HederaService,
     private encryptionService: EncryptionService,
+    private collectionsService: CollectionsService,
+    private configService: ConfigService,
   ) {}
 
   async createAnimal(
@@ -67,27 +72,32 @@ export class AnimalsService {
       if (wallet) {
         const privateKey = this.encryptionService.decrypt(wallet.encryptedPrivateKey);
         
-        // Create NFT metadata
-        const metadata = JSON.stringify({
-          name: animal.name,
-          species: animal.species,
-          breed: animal.breed,
-          age: animal.age,
-          description: animal.description,
-          image: imageUrl,
-          vetRecord: vetRecordUrl,
-          aiPredictionValue: animal.aiPredictionValue,
+        // Get or create collection with capacity check
+        const collection = await this.collectionsService.getOrRotateDefaultForMint({
+          namePrefix: 'Animals',
+          symbolPrefix: 'ANML',
+          createdByUserId: this.configService.get<string>('hedera.accountId') || 'system', // Use system user ID for collection management
+          memo: 'Animal NFT collection',
         });
+        
+        // Create NFT metadata (Hedera has 100 byte limit)
+        const metadata = createAnimalNftMetadata(
+          animal.name,
+          animal.species,
+          animal.breed,
+          animal.age,
+          animal.id
+        );
 
-        // Mint NFT (using a mock token ID for now)
-        const tokenId = '0.0.123456'; // Replace with actual animal NFT token ID
-        const nftResult = await this.hederaService.mintNft(tokenId, metadata, privateKey);
+        // Mint NFT using the collection token ID and transfer to user's wallet
+        console.log(`Minting NFT for user wallet: ${wallet.hederaAccountId}`);
+        const nftResult = await this.hederaService.mintNft(collection.tokenId, metadata, privateKey, wallet.hederaAccountId);
 
         // Update animal with NFT details
         const updatedAnimal = await this.prisma.animal.update({
           where: { id: animal.id },
           data: {
-            tokenId,
+            tokenId: collection.tokenId,
             tokenSerialNumber: nftResult.serialNumber,
           },
           include: {

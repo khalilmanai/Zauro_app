@@ -183,3 +183,31 @@ model FileUpload {
   
   @@map("file_uploads")
 }
+
+// ==============================================
+// Hedera NFT Collections (HTS tokens) managed by admins/startup
+// ==============================================
+
+enum CollectionStatus {
+  ACTIVE
+  DISABLED
+}
+
+model Collection {
+  id                 String           @id @default(cuid())
+  name               String
+  symbol             String
+  tokenId            String           @unique // Hedera Token ID, e.g., 0.0.xxxx
+  treasuryAccountId  String           // Treasury account (usually operator)
+  isDefault          Boolean          @default(false)
+  status             CollectionStatus @default(ACTIVE)
+  maxSupply          Int?
+  autoRotate         Boolean          @default(true)
+
+  // Audit
+  createdByUserId    String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@map("collections")
+}
