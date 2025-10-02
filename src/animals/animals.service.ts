@@ -91,7 +91,7 @@ export class AnimalsService {
 
         // Mint NFT using the collection token ID and transfer to user's wallet
         console.log(`Minting NFT for user wallet: ${wallet.hederaAccountId}`);
-        const nftResult = await this.hederaService.mintNft(collection.tokenId, metadata, privateKey, wallet.hederaAccountId);
+        const nftResult = await this.hederaService.mintNft(collection.tokenId, metadata, this.configService.get<string>('hedera.privateKey') || '', wallet.hederaAccountId, privateKey);
 
         // Update animal with NFT details
         const updatedAnimal = await this.prisma.animal.update({

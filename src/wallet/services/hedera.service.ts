@@ -390,12 +390,12 @@ export class HederaService {
     }
   }
 
-  async mintNft(tokenId: string, metadata: string, privateKey: string, recipientAccountId?: string): Promise<{ serialNumber: string; transactionHash: string }> {
+  async mintNft(tokenId: string, metadata: string, privateKey: string, recipientAccountId?: string, userPrivateKey?: string): Promise<{ serialNumber: string; transactionHash: string }> {
     try {
       const token = TokenId.fromString(tokenId);
       const signerPrivateKey = PrivateKey.fromString(privateKey);
       
-      // Create NFT mint transaction
+      // Create NFT mint transaction (always mints to treasury first)
       const tx = new TokenMintTransaction()
         .setTokenId(token)
         .setMetadata([Buffer.from(metadata)]) // Convert metadata to buffer
@@ -423,15 +423,15 @@ export class HederaService {
       const transactionId = submitTx.transactionId.toString();
       
       // If recipient is specified, associate and transfer the NFT to them
-      if (recipientAccountId) {
+      if (recipientAccountId && userPrivateKey) {
         this.logger.log(`Associating token ${tokenId} with recipient: ${recipientAccountId}`);
-        await this.associateTokenWithAccount(tokenId, recipientAccountId, privateKey);
+        await this.associateTokenWithAccount(tokenId, recipientAccountId, userPrivateKey);
         
         this.logger.log(`Transferring NFT to recipient: ${recipientAccountId}`);
-        await this.transferNft(tokenId, serialNumber, this.operatorAccountId.toString(), recipientAccountId, privateKey);
+        await this.transferNft(tokenId, serialNumber, this.operatorAccountId.toString(), recipientAccountId, this.operatorPrivateKey.toString());
         this.logger.log(`Successfully minted and transferred NFT: Token ${tokenId}, Serial ${serialNumber} to ${recipientAccountId}. Transaction ID: ${transactionId}`);
       } else {
-        this.logger.log(`Successfully minted NFT: Token ${tokenId}, Serial ${serialNumber} to treasury. Transaction ID: ${transactionId}`);
+        this.logger.log(`Successfully minted NFT to treasury: Token ${tokenId}, Serial ${serialNumber}. Transaction ID: ${transactionId}`);
       }
       
       return {
@@ -469,6 +469,11 @@ export class HederaService {
       const receipt = await submitTx.getReceipt(this.client);
       
       if (receipt.status.toString() !== 'SUCCESS') {
+        // Check if token is already associated (this is not an error)
+        if (receipt.status.toString() === 'TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT') {
+          this.logger.log(`Token ${tokenId} is already associated with account ${accountId}. Continuing...`);
+          return submitTx.transactionId.toString();
+        }
         throw new Error(`Token association failed with status: ${receipt.status.toString()}`);
       }
       
@@ -478,6 +483,12 @@ export class HederaService {
       
       return transactionId;
     } catch (error) {
+      // Handle ReceiptStatusError specifically for TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT
+      if (error.name === 'ReceiptStatusError' && error.status && error.status._code === 194) {
+        this.logger.log(`Token ${tokenId} is already associated with account ${accountId}. Continuing...`);
+        return 'already-associated';
+      }
+      
       this.logger.error('Failed to associate token with account:', error);
       throw error;
     }
