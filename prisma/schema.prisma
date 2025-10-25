@@ -100,7 +100,7 @@ model Animal {
   species         AnimalSpecies
   breed           String?
   age             Int?
-  gender          AnimalGender
+  gender          AnimalGender @default(MALE)
   description     String?
   
   // NFT metadata

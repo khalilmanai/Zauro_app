@@ -6,7 +6,10 @@ npx prisma generate
 
 if [ "$NODE_ENV" = "development" ]; then
   echo "[entrypoint] NODE_ENV=development → applying schema with prisma db push"
-  npx prisma db push
+  npx prisma db push --force-reset || {
+    echo "[entrypoint] Schema push failed, trying with force reset..."
+    npx prisma db push --force-reset
+  }
   if [ -n "$RUN_SEED" ]; then
     echo "[entrypoint] Running seed"
     npm run db:seed || true
