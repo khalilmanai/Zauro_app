@@ -732,3 +732,36 @@ MAILERSEND_FROM="noreply@yourdomain.com"
 - **Document Type**: Technical Project Overview
 - **Audience**: Technical stakeholders, developers, and project managers
 - **Status**: Current and Active
+
+## Docker
+
+- Build image:
+  ```bash
+  docker build -t zauro-backend .
+  ```
+- Run with Postgres via compose:
+  ```bash
+  docker compose up --build
+  ```
+- Environment:
+  - Copy `env.example` to `.env` and set `DATABASE_URL`, JWT secrets, etc.
+  - Compose overrides `DATABASE_URL` to point to the `db` container by default.
+- Optional seeding:
+  - Set `RUN_SEED=1` in `.env` to run `npm run db:seed` on container start.
+
+## Collections: Admin vs Users
+
+- Admin/Startup responsibilities:
+  - Create and manage Hedera NFT collections (HTS tokens) via `POST /api/v1/admin/collections`.
+  - Optionally set a default active collection used for user minting.
+  - Disable/enable and rotate defaults as needed.
+- Users:
+  - Create wallets, mint NFTs into the default collection, trade, list, buy and sell.
+  - No permission to create/disable collections.
+
+### Auto-rotation when collection is full
+
+- Set `maxSupply` and `autoRotate=true` on a collection record.
+- During mint flow, use service `getOrRotateDefaultForMint` to obtain a valid collection.
+- If total supply has reached `maxSupply`, the system will create a new collection (copying `maxSupply`) and set it as the new default.
+- Admin endpoint: `POST /api/v1/admin/collections/rotate-if-full` can also be used to trigger a check/rotation.

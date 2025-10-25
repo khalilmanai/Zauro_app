@@ -1,4 +1,5 @@
-import { IsString, IsEnum, IsOptional, IsInt, IsDecimal, Min, Max } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsInt, IsNumber, Min, Max } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { AnimalSpecies, AnimalGender } from '@prisma/client';
 
@@ -45,6 +46,7 @@ export class CreateAnimalDto {
     required: false
   })
   @IsOptional()
+  @Transform(({ value }: { value: any }) => parseInt(value))
   @IsInt()
   @Min(0)
   @Max(50)
@@ -65,6 +67,7 @@ export class CreateAnimalDto {
     required: false
   })
   @IsOptional()
-  @IsDecimal()
+  @Transform(({ value }: { value: any }) => parseFloat(value))
+  @IsNumber()
   aiPredictionValue?: number;
 }

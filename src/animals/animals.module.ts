@@ -4,9 +4,10 @@ import { AnimalsController } from './animals.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { CollectionsModule } from '../collections/collections.module';
 
 @Module({
-  imports: [PrismaModule, SupabaseModule, WalletModule],
+  imports: [PrismaModule, SupabaseModule, WalletModule, CollectionsModule],
   controllers: [AnimalsController],
   providers: [AnimalsService],
   exports: [AnimalsService],

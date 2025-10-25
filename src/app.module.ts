@@ -13,6 +13,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { AnimalsModule } from './animals/animals.module';
 import { TradesModule } from './trades/trades.module';
 import { SupabaseModule } from './supabase/supabase.module';
+import { CollectionsModule } from './collections/collections.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -36,6 +37,7 @@ import configuration from './config/configuration';
     AnimalsModule,
     TradesModule,
     SupabaseModule,
+    CollectionsModule,
   ],
   controllers: [AppController],
   providers: [
