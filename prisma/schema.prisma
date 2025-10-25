@@ -48,6 +48,23 @@ enum OtpType {
   PHONE_VERIFICATION
 }
 
+// Credential type enum
+enum CredentialType {
+  KYC
+  REPUTATION
+  VETERINARY
+  IDENTITY
+  BUSINESS_LICENSE
+}
+
+// Credential status enum
+enum CredentialStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  PENDING
+}
+
 // User model
 model User {
   id        String   @id @default(cuid())
@@ -60,17 +77,23 @@ model User {
   isActive  Boolean  @default(true)
   isVerified Boolean @default(false)
   
+  // DID Integration
+  did             String?  @unique  // User's DID (did:hedera:mainnet:0.0.xxxx)
+  didPrivateKey   String?           // Encrypted DID private key
+  didDocument     Json?             // Cached DID document
+  
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   lastLoginAt DateTime?
   
   // Relations
-  wallet   Wallet?
-  animals  Animal[]
+  wallet       Wallet?
+  animals      Animal[]
   tradesAsSeller Trade[] @relation("SellerTrades")
   tradesAsBuyer  Trade[] @relation("BuyerTrades")
-  otps     Otp[]
+  otps         Otp[]
+  credentials  Credential[]
   
   @@map("users")
 }
@@ -187,6 +210,36 @@ model FileUpload {
   createdAt DateTime @default(now())
   
   @@map("file_uploads")
+}
+
+// ==============================================
+// Verifiable Credentials (DID Integration)
+// ==============================================
+
+model Credential {
+  id              String           @id @default(cuid())
+  userId          String
+  type            CredentialType
+  status          CredentialStatus @default(ACTIVE)
+  
+  // DID and Credential Data
+  issuerDid       String           // DID of the issuer
+  subjectDid      String           // DID of the subject (user)
+  credentialId    String           @unique // Unique credential identifier
+  
+  // Credential Content
+  credentialData  Json             // The actual verifiable credential
+  signature       String?          // Digital signature
+  
+  // Metadata
+  issuedAt        DateTime         @default(now())
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("credentials")
 }
 
 // ==============================================

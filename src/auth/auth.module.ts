@@ -11,6 +11,7 @@ import { OtpModule } from '../otp/otp.module';
 import { MailModule } from '../mail/mail.module';
 import { SmsModule } from '../sms/sms.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { DidModule } from '../did/did.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { WalletModule } from '../wallet/wallet.module';
     MailModule,
     SmsModule,
     WalletModule,
+    DidModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

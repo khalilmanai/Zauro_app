@@ -10,5 +10,6 @@ export class AuthResponseDto {
     lastName: string;
     role: UserRole;
     isVerified: boolean;
+    did?: string; // Optional DID field
   };
 }

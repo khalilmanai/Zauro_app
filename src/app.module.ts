@@ -14,6 +14,7 @@ import { AnimalsModule } from './animals/animals.module';
 import { TradesModule } from './trades/trades.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { CollectionsModule } from './collections/collections.module';
+import { DidModule } from './did/did.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -38,6 +39,7 @@ import configuration from './config/configuration';
     TradesModule,
     SupabaseModule,
     CollectionsModule,
+    DidModule,
   ],
   controllers: [AppController],
   providers: [

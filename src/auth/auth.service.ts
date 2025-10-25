@@ -10,6 +10,7 @@ import { OtpService } from '../otp/otp.service';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
 import { WalletService } from '../wallet/wallet.service';
+import { DidService } from '../did/did.service';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
     private mailService: MailService,
     private smsService: SmsService,
     private walletService: WalletService,
+    private didService: DidService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
@@ -62,6 +64,29 @@ export class AuthService {
       },
     });
 
+    // Create DID for the user
+    let didResult = null;
+    try {
+      didResult = await this.didService.createUserDid(user.id);
+      
+      // Encrypt and store DID private key
+      const encryptedPrivateKey = this.didService['encryptionService'].encrypt(didResult.privateKey);
+      
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          did: didResult.did,
+          didPrivateKey: encryptedPrivateKey,
+          didDocument: didResult.document as any,
+        },
+      });
+
+      console.log(`Created DID ${didResult.did} for user ${user.email}`);
+    } catch (error) {
+      // Log error but don't fail registration if DID creation fails
+      console.error('Failed to create DID during registration:', error);
+    }
+
     // Create wallet automatically for new user
     try {
       await this.walletService.createWallet(user.id);
@@ -75,7 +100,10 @@ export class AuthService {
 
     return {
       ...tokens,
-      user,
+      user: {
+        ...user,
+        did: didResult?.did, // Include DID in response
+      },
     };
   }
 
