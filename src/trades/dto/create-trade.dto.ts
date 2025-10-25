@@ -1,4 +1,4 @@
-import { IsString, IsDecimal, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTradeDto {
@@ -14,7 +14,7 @@ export class CreateTradeDto {
     description: 'Price for the animal trade',
     minimum: 0
   })
-  @IsDecimal()
+  @IsNumber()
   @Min(0)
   price: number;
 

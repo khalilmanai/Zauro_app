@@ -8,6 +8,14 @@ export interface NftMetadata {
   [key: string]: string | number; // Additional fields
 }
 
+export interface MinimalNftMetadata {
+  n: string; // name
+  s: string; // species
+  b: string; // breed
+  a: number; // age
+  i: string; // id
+}
+
 /**
  * Creates NFT metadata JSON string that fits within Hedera's 100-byte limit
  * @param metadata - The metadata object to serialize
@@ -40,13 +48,48 @@ export function createAnimalNftMetadata(
   age: number | null,
   id: string
 ): string {
-  return createNftMetadata({
-    name: name.substring(0, 20), // Truncate name if too long
-    species,
-    breed: breed || '',
-    age: age || 0,
-    id,
-  });
+  // Create minimal metadata with aggressive truncation
+  const metadata: MinimalNftMetadata = {
+    n: name.substring(0, 15), // Truncate name to 15 chars
+    s: species.substring(0, 10), // Truncate species to 10 chars
+    b: (breed || '').substring(0, 8), // Truncate breed to 8 chars
+    a: age || 0,
+    i: id.substring(0, 8), // Use only first 8 chars of ID
+  };
+
+  let jsonString = JSON.stringify(metadata);
+  
+  // If still too long, progressively reduce field sizes
+  while (Buffer.byteLength(jsonString, 'utf8') > 100) {
+    if (metadata.n.length > 10) {
+      metadata.n = metadata.n.substring(0, 10);
+    } else if (metadata.s.length > 8) {
+      metadata.s = metadata.s.substring(0, 8);
+    } else if (metadata.b.length > 6) {
+      metadata.b = metadata.b.substring(0, 6);
+    } else if (metadata.i.length > 6) {
+      metadata.i = metadata.i.substring(0, 6);
+    } else {
+      // Last resort: minimal metadata
+      metadata.n = metadata.n.substring(0, 8);
+      metadata.s = metadata.s.substring(0, 6);
+      metadata.b = '';
+      metadata.a = 0;
+      metadata.i = metadata.i.substring(0, 4);
+    }
+    jsonString = JSON.stringify(metadata);
+  }
+
+  // Convert minimal metadata to standard format for validation
+  const standardMetadata: NftMetadata = {
+    name: metadata.n,
+    id: metadata.i,
+    species: metadata.s,
+    breed: metadata.b,
+    age: metadata.a,
+  };
+
+  return createNftMetadata(standardMetadata);
 }
 
 /**

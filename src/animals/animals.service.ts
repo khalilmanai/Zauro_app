@@ -76,7 +76,6 @@ export class AnimalsService {
         const collection = await this.collectionsService.getOrRotateDefaultForMint({
           namePrefix: 'Animals',
           symbolPrefix: 'ANML',
-          createdByUserId: this.configService.get<string>('hedera.accountId') || 'system', // Use system user ID for collection management
           memo: 'Animal NFT collection',
         });
         

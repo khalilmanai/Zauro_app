@@ -9,6 +9,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { OtpService } from '../otp/otp.service';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
+import { WalletService } from '../wallet/wallet.service';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
     private otpService: OtpService,
     private mailService: MailService,
     private smsService: SmsService,
+    private walletService: WalletService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
@@ -59,6 +61,14 @@ export class AuthService {
         isVerified: true,
       },
     });
+
+    // Create wallet automatically for new user
+    try {
+      await this.walletService.createWallet(user.id);
+    } catch (error) {
+      // Log error but don't fail registration if wallet creation fails
+      console.error('Failed to create wallet during registration:', error);
+    }
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id);

@@ -28,10 +28,6 @@ export class CreateCollectionDto {
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;
-
-  @ApiProperty({ example: 'userId-of-admin' })
-  @IsString()
-  createdByUserId: string;
 }
 
 

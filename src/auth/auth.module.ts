@@ -10,6 +10,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { OtpModule } from '../otp/otp.module';
 import { MailModule } from '../mail/mail.module';
 import { SmsModule } from '../sms/sms.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SmsModule } from '../sms/sms.module';
     OtpModule,
     MailModule,
     SmsModule,
+    WalletModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

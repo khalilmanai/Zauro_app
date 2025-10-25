@@ -87,7 +87,7 @@ export class HederaService {
         .setSupplyKey(this.operatorPrivateKey)
         .setAdminKey(this.operatorPrivateKey)
         .setFreezeDefault(false)
-        .setMaxTransactionFee(new Hbar(5));
+        .setMaxTransactionFee(new Hbar(10));
 
       if (memo) {
         tx.setTokenMemo(memo);

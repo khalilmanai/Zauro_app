@@ -20,7 +20,6 @@ export class CollectionsController {
       memo: body.memo,
       maxSupply: body.maxSupply,
       setDefault: body.isDefault,
-      createdByUserId: body.createdByUserId,
     });
   }
 
@@ -40,9 +39,8 @@ export class CollectionsController {
   @Post('rotate-if-full')
   @Roles('ADMIN', 'HR_MANAGER')
   @ApiOperation({ summary: 'Check default collection and rotate (create new) if full' })
-  async rotateIfFull(@Body() body: { createdByUserId: string; namePrefix?: string; symbolPrefix?: string; memo?: string; }) {
+  async rotateIfFull(@Body() body: { namePrefix?: string; symbolPrefix?: string; memo?: string; }) {
     return this.service.getOrRotateDefaultForMint({
-      createdByUserId: body.createdByUserId,
       namePrefix: body.namePrefix,
       symbolPrefix: body.symbolPrefix,
       memo: body.memo,
