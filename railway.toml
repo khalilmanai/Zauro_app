@@ -1,0 +1,14 @@
+# Railway Configuration
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.production"
+
+[deploy]
+startCommand = "node dist/main.js"
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 300
+restartPolicyType = "always"
+
+[env]
+NODE_ENV = "production"
+PORT = "3000"

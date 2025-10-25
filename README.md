@@ -2,10 +2,11 @@
 
 ## 📋 Executive Summary
 
-The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal trading platform built with **NestJS**, **PostgreSQL**, **Hedera Hashgraph**, and **Supabase**. The system enables users to register animals as NFTs on the blockchain and trade them through a secure, decentralized marketplace with atomic swap functionality.
+The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal trading platform built with **NestJS**, **PostgreSQL**, **Hedera Hashgraph**, **Supabase**, and **Hedera DID**. The system enables users to register animals as NFTs on the blockchain, manage decentralized identities (DIDs), and trade them through a secure, decentralized marketplace with atomic swap functionality.
 
 ### 🎯 Core Value Proposition
 - **Blockchain-Native**: Animals are represented as NFTs on Hedera Hashgraph, ensuring immutable ownership records
+- **Decentralized Identity**: Hedera DID integration for secure, self-sovereign identity management
 - **Secure Trading**: Atomic swap execution prevents fraud and ensures fair transactions
 - **Comprehensive Management**: Full lifecycle management from animal registration to trading completion
 - **Enterprise-Ready**: Role-based access control, comprehensive security, and scalable architecture
@@ -20,6 +21,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 | **Backend Framework** | NestJS (TypeScript) | Modular, scalable REST API |
 | **Database** | PostgreSQL + Prisma ORM | Relational data storage with type-safe queries |
 | **Blockchain** | Hedera Hashgraph SDK | NFT minting, transfers, and atomic swaps |
+| **Decentralized Identity** | Hedera DID | Self-sovereign identity management |
 | **File Storage** | Supabase Storage | Animal images and veterinary records |
 | **Authentication** | JWT with refresh tokens | Secure user authentication |
 | **Email Service** | MailerSend | Transactional emails and notifications |
@@ -72,6 +74,12 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
   role: UserRole             // ADMIN | HR_MANAGER | EMPLOYEE_TRADER
   isActive: boolean          // Account status
   isVerified: boolean        // Email/phone verification status
+  
+  // DID Integration
+  did?: string (unique)      // User's DID (did:hedera:mainnet:0.0.xxxx)
+  didPrivateKey?: string     // Encrypted DID private key
+  didDocument?: Json         // Cached DID document
+  
   createdAt: DateTime        // Registration timestamp
   updatedAt: DateTime        // Last modification timestamp
   lastLoginAt?: DateTime     // Last login tracking
@@ -144,16 +152,41 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 }
 ```
 
+#### 🆔 Credential Model (DID Integration)
+```typescript
+{
+  id: string (CUID)              // Primary key
+  userId: string                 // Foreign key to User
+  type: CredentialType          // KYC | REPUTATION | VETERINARY | IDENTITY | BUSINESS_LICENSE
+  status: CredentialStatus      // ACTIVE | REVOKED | EXPIRED | PENDING
+  
+  // DID and Credential Data
+  issuerDid: string             // DID of the issuer
+  subjectDid: string            // DID of the subject (user)
+  credentialId: string (unique) // Unique credential identifier
+  
+  // Credential Content
+  credentialData: Json          // The actual verifiable credential
+  signature?: string            // Digital signature
+  
+  // Metadata
+  issuedAt: DateTime            // Issuance timestamp
+  expiresAt?: DateTime         // Expiration timestamp
+  revokedAt?: DateTime         // Revocation timestamp
+}
+```
+
 ---
 
 ## 🔧 Core Features & Modules
 
 ### 1. 🔐 Authentication Module (`src/auth/`)
 
-**Purpose**: Comprehensive user authentication and authorization system
+**Purpose**: Comprehensive user authentication and authorization system with DID integration
 
 **Key Features**:
 - **User Registration**: Email/phone validation, password hashing (bcrypt with 12 rounds)
+- **Automatic DID Creation**: Each user gets a Hedera DID upon registration
 - **Secure Login**: Credential validation with rate limiting
 - **JWT Token Management**: Access tokens (15min) + refresh tokens (7 days) with rotation
 - **Password Recovery**: OTP-based reset via email or SMS
@@ -175,7 +208,30 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 - `POST /auth/forgot-password/reset` - Reset password with OTP
 - `GET /auth/profile` - Get user profile
 
-### 2. 🐾 Animals Module (`src/animals/`)
+### 2. 🆔 DID Module (`src/did/`)
+
+**Purpose**: Decentralized Identity management using Hedera DID
+
+**Key Features**:
+- **DID Creation**: Automatic Hedera DID generation for new users
+- **DID Resolution**: Retrieve and validate DID documents
+- **Credential Management**: Issue and verify verifiable credentials
+- **Key Management**: Secure private key storage with AES-256 encryption
+- **Service Endpoints**: Wallet and profile service integration
+
+**Credential Types**:
+- **KYC Credentials**: Know Your Customer verification
+- **Reputation Credentials**: Trading history and ratings
+- **Veterinary Credentials**: Animal health and medical records
+- **Identity Credentials**: Personal identification documents
+- **Business License Credentials**: Professional certifications
+
+**API Endpoints**:
+- `GET /did/my-did` - Get user's DID and document
+- `POST /did/credentials/issue/kyc` - Issue KYC credential
+- `POST /did/credentials/verify` - Verify a credential
+
+### 3. 🐾 Animals Module (`src/animals/`)
 
 **Purpose**: Complete animal NFT lifecycle management
 
@@ -202,7 +258,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 - `POST /animals/:id/upload-image` - Upload animal image
 - `POST /animals/:id/upload-vet-record` - Upload veterinary records
 
-### 3. 🔄 Trading Module (`src/trades/`)
+### 4. 🔄 Trading Module (`src/trades/`)
 
 **Purpose**: Secure peer-to-peer animal trading with blockchain execution
 
@@ -229,7 +285,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 - `POST /trades/execute/:id` - Execute atomic swap
 - `POST /trades/cancel/:id` - Cancel trade
 
-### 4. 💰 Wallet Module (`src/wallet/`)
+### 5. 💰 Wallet Module (`src/wallet/`)
 
 **Purpose**: Hedera blockchain wallet management with secure key storage
 
@@ -253,7 +309,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 - `GET /wallets/:id` - Get wallet by ID
 - `GET /wallets/:id/balance` - Get wallet balance by ID
 
-### 5. 📧 Notification System
+### 6. 📧 Notification System
 
 #### Mail Module (`src/mail/`)
 **Purpose**: Transactional email delivery via SMTP
@@ -275,7 +331,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 - International SMS support
 - Delivery status tracking
 
-### 6. 🔐 OTP Module (`src/otp/`)
+### 7. 🔐 OTP Module (`src/otp/`)
 
 **Purpose**: One-time password management for secure operations
 
@@ -292,7 +348,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 - Rate limiting on OTP generation
 - Secure random number generation
 
-### 7. 📁 File Storage Module (`src/supabase/`)
+### 8. 📁 File Storage Module (`src/supabase/`)
 
 **Purpose**: Secure file storage and management via Supabase
 
@@ -306,6 +362,64 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 **Storage Buckets**:
 - `animal-images`: Animal photographs and visual content
 - `vet-records`: Veterinary documents and health records
+
+---
+
+## 🚀 Deployment Options
+
+### Free Hosting Platforms
+
+The Zauro platform is fully Dockerized and ready for deployment on various free hosting platforms:
+
+#### 🏆 Railway (Recommended)
+- **Cost**: FREE ($5 credit/month)
+- **Setup Time**: 5 minutes
+- **Features**: Native Docker support, PostgreSQL included, automatic deployments
+- **Perfect for**: Production deployment
+
+#### 🌊 Render
+- **Cost**: FREE (750 hours/month)
+- **Setup Time**: 10 minutes
+- **Features**: Docker support, PostgreSQL, auto-deploy from GitHub
+- **Note**: App sleeps after 15 minutes of inactivity
+
+#### ☁️ Oracle Cloud (Always Free)
+- **Cost**: FREE FOREVER
+- **Setup Time**: 30 minutes
+- **Features**: Full VPS control, 1GB RAM, 10GB storage
+- **Perfect for**: Full control and learning
+
+### Quick Deployment Steps
+
+1. **Push to GitHub**:
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Choose Platform**:
+   - Railway: Connect GitHub repo at [railway.app](https://railway.app)
+   - Render: Create Web Service at [render.com](https://render.com)
+   - Oracle Cloud: Deploy VPS with Docker
+
+3. **Set Environment Variables**:
+   ```bash
+   DATABASE_URL=postgresql://user:pass@host:port/db
+   JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters
+   HEDERA_ACCOUNT_ID=0.0.6159428
+   HEDERA_PRIVATE_KEY=your-hedera-private-key
+   HEDERA_NETWORK=testnet
+   ```
+
+4. **Deploy and Test!** 🚀
+
+### Production Files Included
+- `DEPLOYMENT_GUIDE.md` - Complete deployment guide
+- `docker-compose.production.yml` - Production Docker setup
+- `Dockerfile.production` - Optimized production image
+- `railway.toml` - Railway configuration
+- `deploy.sh` - Automated deployment script
 
 ---
 
@@ -489,6 +603,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 
 ### Blockchain Integration
 - **Native NFT Support**: Animals as first-class NFTs on Hedera
+- **Decentralized Identity**: Hedera DID integration for self-sovereign identity
 - **Atomic Swaps**: Fraud-proof trading with simultaneous asset exchange
 - **Immutable Ownership**: Blockchain-verified ownership history
 - **Smart Contract Ready**: Architecture prepared for smart contract integration
@@ -547,6 +662,11 @@ JWT_REFRESH_EXPIRES_IN="7d"
 HEDERA_ACCOUNT_ID="0.0.123456"
 HEDERA_PRIVATE_KEY="302e020100300506032b657004220420..."
 HEDERA_NETWORK="testnet"
+
+# Hedera DID (Optional - for advanced DID features)
+HEDERA_DID_NETWORK="testnet"
+HEDERA_DID_OPERATOR_ID="0.0.123456"
+HEDERA_DID_OPERATOR_KEY="302e020100300506032b657004220420..."
 
 # Supabase Storage
 SUPABASE_URL="https://your-project.supabase.co"
@@ -727,11 +847,12 @@ MAILERSEND_FROM="noreply@yourdomain.com"
 
 ## 📝 Document Information
 
-- **Version**: 1.0
-- **Last Updated**: December 2024
+- **Version**: 2.0
+- **Last Updated**: January 2025
 - **Document Type**: Technical Project Overview
 - **Audience**: Technical stakeholders, developers, and project managers
 - **Status**: Current and Active
+- **New Features**: Hedera DID Integration, Free Deployment Options
 
 ## Docker
 
