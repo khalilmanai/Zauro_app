@@ -645,18 +645,6 @@ class _RegistrationCarouselScreenState
     );
   }
 
-  String? _formatPhone(String? phone, String selectedCountry) {
-    if (phone == null || phone.isEmpty) return null;
-    final dial = _countryList.firstWhere((c) => c['code'] == selectedCountry,
-        orElse: () => {'dial': '+1'})['dial']!;
-    final cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleaned.startsWith('0')) {
-      // drop leading zero for international format
-      return '$dial${cleaned.substring(1)}';
-    }
-    return '$dial$cleaned';
-  }
-
   Widget _buildTermsAndConditionsStep(RegistrationState state) {
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -949,13 +937,14 @@ class _RegistrationCarouselScreenState
 
       ref.read(authNotifierProvider.notifier).register(
             email: state.email!,
-            phone: state.phone?.isNotEmpty == true
-                ? _formatPhone(state.phone, _selectedCountryCode)
-                : null,
+            // state.phone is stored as E.164 by the phone input widget
+            phone: state.phone?.isNotEmpty == true ? state.phone : null,
             password: state.password!,
             firstName: state.firstName!,
             lastName: state.lastName!,
-            country: state.country ?? _selectedCountryCode,
+            // Prefer the state.country (ISO) set by the phone input; fall back to selected country ISO or legacy code
+            country:
+                state.country ?? _selectedCountryIso ?? _selectedCountryCode,
           );
     }
   }
