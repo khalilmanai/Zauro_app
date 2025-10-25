@@ -17,6 +17,7 @@ class CreateAnimalDto {
     name;
     species;
     breed;
+    gender;
     age;
     description;
     aiPredictionValue;
@@ -24,7 +25,7 @@ class CreateAnimalDto {
 exports.CreateAnimalDto = CreateAnimalDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        example: 'Buddy',
+        example: 'Bella',
         description: 'Name of the animal'
     }),
     (0, class_validator_1.IsString)(),
@@ -32,7 +33,7 @@ __decorate([
 ], CreateAnimalDto.prototype, "name", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        example: 'DOG',
+        example: 'COW',
         description: 'Species of the animal',
         enum: client_1.AnimalSpecies,
         enumName: 'AnimalSpecies'
@@ -42,7 +43,7 @@ __decorate([
 ], CreateAnimalDto.prototype, "species", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        example: 'Golden Retriever',
+        example: 'Holstein Friesian',
         description: 'Breed of the animal (optional)',
         required: false
     }),
@@ -50,6 +51,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateAnimalDto.prototype, "breed", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'FEMALE',
+        description: 'Gender of the animal',
+        enum: client_1.AnimalGender,
+        enumName: 'AnimalGender'
+    }),
+    (0, class_validator_1.IsEnum)(client_1.AnimalGender),
+    __metadata("design:type", String)
+], CreateAnimalDto.prototype, "gender", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         example: 3,
@@ -66,7 +77,7 @@ __decorate([
 ], CreateAnimalDto.prototype, "age", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        example: 'Friendly and energetic dog, great with children and other pets. Fully house trained and loves outdoor activities.',
+        example: 'Healthy cow with excellent milk production. Vaccinated and well-fed. Good temperament and adapts well to different farm conditions.',
         description: 'Detailed description of the animal (optional)',
         required: false
     }),

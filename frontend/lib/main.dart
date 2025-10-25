@@ -7,9 +7,11 @@ import 'core/config/app_config.dart';
 import 'core/config/environment.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/app_colors.dart';
 import 'core/utils/storage_service.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/services/performance_service.dart';
+import 'core/widgets/splash_screen.dart';
 import 'features/auth/data/models/user_model.dart';
 
 void main() async {
@@ -38,9 +40,9 @@ void main() async {
     // Set system UI overlay style
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
+        statusBarColor: AppColors.transparent,
         statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.white,
+        systemNavigationBarColor: AppColors.white,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
@@ -61,12 +63,13 @@ void main() async {
     // Show a basic error screen
     runApp(
       MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error, size: 64, color: Colors.red),
+                const Icon(Icons.error, size: 64, color: AppColors.red500),
                 const SizedBox(height: 16),
                 const Text(
                   'App initialization failed',
@@ -111,7 +114,10 @@ class ZauroApp extends ConsumerWidget {
           data: MediaQuery.of(
             context,
           ).copyWith(textScaler: TextScaler.noScaling),
-          child: child!,
+          child: AnimatedSplashScreen(
+            duration: const Duration(seconds: 3),
+            child: child!,
+          ),
         );
       },
     );

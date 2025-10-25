@@ -34,7 +34,7 @@ class LoadingOverlay extends StatelessWidget {
                     color: AppTheme.getBorderColor(context),
                     width: 1,
                   ),
-                  boxShadow: AppTheme.getContextShadow(context),
+                  boxShadow: AppTheme.getLightShadow(),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

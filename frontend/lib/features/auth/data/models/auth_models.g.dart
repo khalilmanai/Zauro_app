@@ -13,6 +13,8 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
       lastName: json['lastName'] as String,
       role: json['role'] as String,
       isVerified: json['isVerified'] as bool,
+      avatarUrl: json['avatarUrl'] as String?,
+      country: json['country'] as String?,
       lastLoginAt: json['lastLoginAt'] == null
           ? null
           : DateTime.parse(json['lastLoginAt'] as String),
@@ -25,6 +27,8 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
       'lastName': instance.lastName,
       'role': instance.role,
       'isVerified': instance.isVerified,
+      'avatarUrl': instance.avatarUrl,
+      'country': instance.country,
       'lastLoginAt': instance.lastLoginAt?.toIso8601String(),
     };
 
@@ -48,6 +52,8 @@ RegisterRequest _$RegisterRequestFromJson(Map<String, dynamic> json) =>
       password: json['password'] as String,
       firstName: json['firstName'] as String,
       lastName: json['lastName'] as String,
+      avatarUrl: json['avatarUrl'] as String?,
+      country: json['country'] as String?,
     );
 
 Map<String, dynamic> _$RegisterRequestToJson(RegisterRequest instance) =>
@@ -57,6 +63,8 @@ Map<String, dynamic> _$RegisterRequestToJson(RegisterRequest instance) =>
       'password': instance.password,
       'firstName': instance.firstName,
       'lastName': instance.lastName,
+      'avatarUrl': instance.avatarUrl,
+      'country': instance.country,
     };
 
 LoginRequest _$LoginRequestFromJson(Map<String, dynamic> json) => LoginRequest(
@@ -126,4 +134,18 @@ Map<String, dynamic> _$ResetPasswordRequestToJson(
       'newPassword': instance.newPassword,
       'email': instance.email,
       'phone': instance.phone,
+    };
+
+Avatar _$AvatarFromJson(Map<String, dynamic> json) => Avatar(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      imageUrl: json['imageUrl'] as String,
+      category: json['category'] as String,
+    );
+
+Map<String, dynamic> _$AvatarToJson(Avatar instance) => <String, dynamic>{
+      'id': instance.id,
+      'name': instance.name,
+      'imageUrl': instance.imageUrl,
+      'category': instance.category,
     };

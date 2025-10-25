@@ -82,16 +82,19 @@ class PerformanceService {
   static Future<void> preloadCriticalResources(BuildContext context) async {
     // Preload common images
     const imagePaths = [
-      'assets/images/logo.png',
-      'assets/images/placeholder.png',
+      'assets/images/logo.svg',
+      'assets/images/placeholder.svg',
     ];
 
     for (final path in imagePaths) {
       try {
-        await precacheImage(AssetImage(path), context);
+        // For SVG files, we don't need to precache as they are loaded differently
+        if (!path.endsWith('.svg')) {
+          await precacheImage(AssetImage(path), context);
+        }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('Failed to preload image: $path');
+          debugPrint('Failed to preload image: $path - $e');
         }
       }
     }
@@ -255,4 +258,3 @@ class _DebouncedBuilderState extends State<_DebouncedBuilder> {
     return _cachedWidget ?? const SizedBox.shrink();
   }
 }
-

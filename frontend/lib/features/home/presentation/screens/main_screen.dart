@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../animals/presentation/screens/animals_list_screen.dart';
-import '../../../trading/presentation/screens/marketplace_screen.dart';
 import '../../../wallet/presentation/screens/wallet_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -23,12 +23,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with TickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _animationController;
+  late AnimationController _fabAnimationController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final List<Widget> _screens = [
     const DashboardScreen(),
     const AnimalsListScreen(),
-    const MarketplaceScreen(),
     const WalletScreen(),
     const ProfileScreen(),
   ];
@@ -45,12 +45,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
       activeIcon: Icons.pets,
       label: 'Animals',
       color: Colors.green,
-    ),
-    NavItem(
-      icon: Icons.store_outlined,
-      activeIcon: Icons.store,
-      label: 'Marketplace',
-      color: Colors.orange,
     ),
     NavItem(
       icon: Icons.account_balance_wallet_outlined,
@@ -73,12 +67,18 @@ class _MainScreenState extends ConsumerState<MainScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    _fabAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
     _animationController.forward();
+    _fabAnimationController.forward();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _fabAnimationController.dispose();
     super.dispose();
   }
 
@@ -89,7 +89,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     return Scaffold(
       key: _scaffoldKey,
       drawer: _buildCustomDrawer(context),
-      drawerEnableOpenDragGesture: false, // Disable swipe to open
+      drawerEnableOpenDragGesture: false,
       body: Row(
         children: [
           // Permanent sidebar for desktop
@@ -98,112 +98,85 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Expanded(
             child: Column(
               children: [
-                // Custom app bar with drawer button for mobile/tablet
+                // Top app bar for mobile
                 if (!isDesktop) _buildMobileAppBar(context),
-                // Screen content
-                Expanded(child: _screens[_currentIndex]),
+                // Main content area
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(1.0, 0.0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      );
+                    },
+                    child: Container(
+                      key: ValueKey(_currentIndex),
+                      child: _screens[_currentIndex],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
+      // Bottom navigation removed
+      // Floating action button
       floatingActionButton: _buildFloatingActionButton(context),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  Widget _buildCustomDrawer(BuildContext context) {
-    return Drawer(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      width: ResponsiveUtils.getDrawerWidth(context),
-      child: Column(
-        children: [
-          _buildDrawerHeader(context),
-          _buildUserProfileSection(context),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                const SizedBox(height: 8),
-                _buildNavigationSection(context),
-                const SizedBox(height: 24),
-                _buildQuickActionsSection(context),
-                const SizedBox(height: 32),
-                _buildDrawerFooter(context),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildMobileAppBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentItem = _navItems[_currentIndex];
 
-  Widget _buildDrawerHeader(BuildContext context) {
     return Container(
-      height: context.responsive(mobile: 160.0, tablet: 180.0, desktop: 140.0),
-      width: double.infinity,
       decoration: BoxDecoration(
-        gradient: AppTheme.getPrimaryGradient(context),
+        color: theme.scaffoldBackgroundColor,
+        boxShadow: AppTheme.getLightShadow(),
       ),
       child: SafeArea(
         child: Padding(
-          padding: ResponsiveUtils.responsive(
-            context,
-            mobile: const EdgeInsets.all(20),
-            tablet: const EdgeInsets.all(24),
-            desktop: const EdgeInsets.all(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: context.responsive(
-                        mobile: 48.0, tablet: 56.0, desktop: 40.0),
-                    height: context.responsive(
-                        mobile: 48.0, tablet: 56.0, desktop: 40.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 2,
+              // Menu button
+              IconButton(
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                icon: const Icon(Icons.menu),
+                style: IconButton.styleFrom(
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Title
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentItem.label,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: currentItem.color,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    child: Icon(
-                      Icons.pets,
-                      color: Colors.white,
-                      size: context.responsive(
-                          mobile: 24.0, tablet: 28.0, desktop: 20.0),
+                    Text(
+                      'Zauro Marketplace',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Zauro',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        Text(
-                          'Marketplace',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              // Theme toggle
+              _buildThemeToggle(context),
             ],
           ),
         ),
@@ -211,78 +184,257 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
   }
 
-  Widget _buildDrawerItem(BuildContext context, int index) {
-    final isSelected = _currentIndex == index;
-    final item = _navItems[index];
+  Widget _buildDesktopSidebar(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      width: ResponsiveUtils.getDrawerWidth(context),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        border: Border(
+          right: BorderSide(
+            color: AppTheme.getBorderColor(context),
+            width: 1,
+          ),
+        ),
+        boxShadow: AppTheme.getLightShadow(),
+      ),
+      child: Column(
+        children: [
+          _buildDesktopSidebarHeader(context),
+          _buildUserProfileSection(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  _buildNavigationSection(context),
+                  const SizedBox(height: 24),
+                  _buildQuickActionsSection(context),
+                  const SizedBox(height: 32),
+                  _buildDrawerFooter(context),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopSidebarHeader(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      child: Column(
+        children: [
+          // App logo/icon
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // App title
+          Text(
+            'Zauro',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            'Marketplace',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserProfileSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.user;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.getBorderColor(context),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: theme.colorScheme.primary,
+            backgroundImage:
+                user?.avatarUrl != null ? NetworkImage(user!.avatarUrl!) : null,
+            child: user?.avatarUrl == null
+                ? Text(
+                    user?.firstName.substring(0, 1).toUpperCase() ?? 'U',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          // User info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user?.fullName ?? 'User',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  user?.email ?? 'user@example.com',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationSection(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            'Navigation',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...List.generate(_navItems.length, (index) {
+          final item = _navItems[index];
+          final isSelected = _currentIndex == index;
+
+          return _buildNavigationItem(
+            context,
+            item: item,
+            isSelected: isSelected,
+            onTap: () => _onNavigationTap(index),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildNavigationItem(
+    BuildContext context, {
+    required NavItem item,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _onDrawerItemTapped(context, index),
-          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: isSelected
-                  ? item.color.withValues(alpha: 0.1)
-                  : Colors.transparent,
+              color:
+                  isSelected ? item.color.withOpacity(0.1) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
               border: isSelected
                   ? Border.all(
-                      color: item.color.withValues(alpha: 0.3),
+                      color: item.color.withOpacity(0.3),
                       width: 1,
                     )
                   : null,
             ),
             child: Row(
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: isSelected
-                        ? item.color.withValues(alpha: 0.15)
-                        : AppTheme.getMutedColor(context),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    isSelected ? item.activeIcon : item.icon,
+                    key: ValueKey(isSelected),
+                    color:
+                        isSelected ? item.color : theme.colorScheme.onSurface,
+                    size: 20,
                   ),
-                  child: AnimatedSwitcher(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      isSelected ? item.activeIcon : item.icon,
-                      key: ValueKey('${item.label}_$isSelected'),
-                      color: isSelected
-                          ? item.color
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: 24,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color:
+                          isSelected ? item.color : theme.colorScheme.onSurface,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                    child: Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 300),
-                    style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                          color: isSelected
-                              ? item.color
-                              : Theme.of(context).colorScheme.onSurface,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
-                        ),
-                    child: Text(item.label),
-                  ),
-                ),
                 if (isSelected)
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: 4,
-                    height: 20,
+                  Container(
+                    width: 6,
+                    height: 6,
                     decoration: BoxDecoration(
                       color: item.color,
-                      borderRadius: BorderRadius.circular(2),
+                      shape: BoxShape.circle,
                     ),
                   ),
               ],
@@ -293,174 +445,60 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
   }
 
-  Widget _buildUserProfileSection(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final authState = ref.watch(authNotifierProvider);
-        final user = authState.user;
-
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.getBorderColor(context),
-              width: 1,
-            ),
-            boxShadow: AppTheme.getContextShadow(context),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor:
-                    AppTheme.getPrimaryColor(context).withValues(alpha: 0.1),
-                child: Text(
-                  user?.fullName.isNotEmpty == true
-                      ? user!.fullName.substring(0, 1).toUpperCase()
-                      : 'U',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppTheme.getPrimaryColor(context),
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user?.fullName ?? 'User',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      user?.email ?? 'user@example.com',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppTheme.getMutedColor(context),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppTheme.getBorderColor(context),
-                    width: 1,
-                  ),
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    // Navigate to profile
-                    setState(() {
-                      _currentIndex = 4; // Profile index
-                    });
-                  },
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildNavigationSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Text(
-            'Navigation',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...List.generate(_navItems.length, (index) {
-          return _buildDrawerItem(context, index);
-        }),
-      ],
-    );
-  }
-
   Widget _buildQuickActionsSection(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Text(
             'Quick Actions',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         const SizedBox(height: 8),
         _buildQuickActionItem(
-          context: context,
-          icon: Icons.add_circle_outline,
+          context,
+          icon: Icons.add,
           label: 'Add Animal',
           onTap: () {
             Navigator.of(context).pop();
-            // Navigate to add animal
+            context.push('/animals/add');
           },
         ),
         _buildQuickActionItem(
-          context: context,
+          context,
+          icon: Icons.qr_code_scanner,
+          label: 'Scan QR',
+          onTap: () {
+            // Open QR scanner
+          },
+        ),
+        _buildQuickActionItem(
+          context,
           icon: Icons.notifications_outlined,
           label: 'Notifications',
           onTap: () {
-            Navigator.of(context).pop();
-            // Handle notifications
-          },
-        ),
-        _buildQuickActionItem(
-          context: context,
-          icon: Icons.help_outline,
-          label: 'Help & Support',
-          onTap: () {
-            Navigator.of(context).pop();
-            // Handle help
+            // Open notifications
           },
         ),
       ],
     );
   }
 
-  Widget _buildQuickActionItem({
-    required BuildContext context,
+  Widget _buildQuickActionItem(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       child: Material(
@@ -470,38 +508,24 @@ class _MainScreenState extends ConsumerState<MainScreen>
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-            ),
             child: Row(
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppTheme.getMutedColor(context),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                Icon(
+                  icon,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 20,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -512,6 +536,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
   }
 
   Widget _buildDrawerFooter(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Column(
       children: [
         // Settings and Help Row
@@ -543,18 +569,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
                         Icon(
                           Icons.settings_outlined,
                           size: 16,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Settings',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -589,18 +612,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
                         Icon(
                           Icons.help_outline,
                           size: 16,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Help',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -610,523 +630,173 @@ class _MainScreenState extends ConsumerState<MainScreen>
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        // Logout Button
-        Consumer(
-          builder: (context, ref, child) {
-            return SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _showLogoutDialog(context, ref);
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.errorColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.errorColor.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.logout,
-                          size: 18,
-                          color: AppTheme.errorColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Sign Out',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppTheme.errorColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        // App Version Info
-        Container(
+        const SizedBox(height: 16),
+        // Logout button
+        SizedBox(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.getMutedColor(context),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppTheme.getBorderColor(context),
-              width: 1,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              _showLogoutDialog(context);
+            },
+            icon: const Icon(Icons.logout, size: 16),
+            label: const Text('Logout'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+              side: BorderSide(color: theme.colorScheme.error),
+              padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Version 1.0.0',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Animal NFT Marketplace',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMobileAppBar(BuildContext context) {
-    return Container(
-      height: ResponsiveUtils.getAppBarHeight(context),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(
-          bottom: BorderSide(
-            color: AppTheme.getBorderColor(context),
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.getForegroundColor(context).withValues(alpha: 0.05),
-            offset: const Offset(0, 1),
-            blurRadius: 3,
-          ),
-        ],
-      ),
+  Widget _buildCustomDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      width: ResponsiveUtils.getDrawerWidth(context),
       child: SafeArea(
-        child: Padding(
-          padding: ResponsiveUtils.responsivePadding(context).copyWith(
-            top: 8,
-            bottom: 8,
-          ),
-          child: Row(
-            children: [
-              // Drawer button
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.getMutedColor(context),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.getBorderColor(context),
-                        width: 1,
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.menu,
-                      size: ResponsiveUtils.getIconSize(context),
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
+        child: Column(
+          children: [
+            _buildDrawerHeader(context),
+            _buildUserProfileSection(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildNavigationSection(context),
+                    const SizedBox(height: 24),
+                    _buildQuickActionsSection(context),
+                    const SizedBox(height: 32),
+                    _buildDrawerFooter(context),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-              // App title
-              Expanded(
-                child: Text(
-                  _getScreenTitle(),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-              // Theme toggle button
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    ref.read(themeProvider.notifier).toggleTheme();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.getMutedColor(context),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.getBorderColor(context),
-                        width: 1,
-                      ),
-                    ),
-                    child: Icon(
-                      ref.watch(themeProvider).icon,
-                      size: ResponsiveUtils.getIconSize(context),
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDesktopSidebar(BuildContext context) {
+  Widget _buildDrawerHeader(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
-      width: ResponsiveUtils.getDrawerWidth(context),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border(
-          right: BorderSide(
-            color: AppTheme.getBorderColor(context),
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.getForegroundColor(context).withValues(alpha: 0.05),
-            offset: const Offset(1, 0),
-            blurRadius: 3,
-          ),
-        ],
+        gradient: AppTheme.primaryGradient,
       ),
       child: Column(
         children: [
-          _buildDesktopSidebarHeader(context),
-          _buildUserProfileSection(context),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                const SizedBox(height: 8),
-                _buildDesktopNavigationSection(context),
-                const SizedBox(height: 24),
-                _buildQuickActionsSection(context),
-                const SizedBox(height: 32),
-                _buildDrawerFooter(context),
-                const SizedBox(height: 16),
-              ],
+          // App logo/icon
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // App title
+          Text(
+            'Zauro',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            'Marketplace',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withOpacity(0.8),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDesktopSidebarHeader(BuildContext context) {
-    return Container(
-      height: 120,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: AppTheme.getPrimaryGradient(context),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.pets,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Zauro',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      Text(
-                        'Marketplace',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9),
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDesktopNavigationSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Text(
-            'Navigation',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...List.generate(_navItems.length, (index) {
-          return _buildDesktopSidebarItem(context, index);
-        }),
-      ],
-    );
-  }
-
-  Widget _buildDesktopSidebarItem(BuildContext context, int index) {
-    final isSelected = _currentIndex == index;
-    final item = _navItems[index];
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onSidebarItemTapped(index),
-          borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: isSelected
-                  ? item.color.withValues(alpha: 0.1)
-                  : Colors.transparent,
-              border: isSelected
-                  ? Border.all(
-                      color: item.color.withValues(alpha: 0.3),
-                      width: 1,
-                    )
-                  : null,
-            ),
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: isSelected
-                        ? item.color.withValues(alpha: 0.15)
-                        : AppTheme.getMutedColor(context),
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      isSelected ? item.activeIcon : item.icon,
-                      key: ValueKey('${item.label}_$isSelected'),
-                      color: isSelected
-                          ? item.color
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 300),
-                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                          color: isSelected
-                              ? item.color
-                              : Theme.of(context).colorScheme.onSurface,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
-                        ),
-                    child: Text(item.label),
-                  ),
-                ),
-                if (isSelected)
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: 3,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: item.color,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
 
   Widget _buildFloatingActionButton(BuildContext context) {
-    // Hide FAB on desktop as we have more space for actions
-    if (context.isDesktop) return const SizedBox.shrink();
+    final theme = Theme.of(context);
 
-    return FloatingActionButton(
-      onPressed: () {
-        // Quick action - Add Animal
-        // Navigate to add animal screen
+    return AnimatedBuilder(
+      animation: _fabAnimationController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _fabAnimationController.value,
+          child: FloatingActionButton(
+            onPressed: () {
+              // Handle FAB tap
+              HapticFeedback.lightImpact();
+            },
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 6,
+            child: const Icon(Icons.add, size: 28),
+          ),
+        );
       },
-      backgroundColor: AppTheme.getPrimaryColor(context),
-      foregroundColor: Colors.white,
-      child: Icon(
-        Icons.add,
-        size: ResponsiveUtils.getIconSize(context, baseSize: 28),
+    );
+  }
+
+  Widget _buildThemeToggle(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeState = ref.watch(themeProvider);
+
+    return IconButton(
+      onPressed: () {
+        ref.read(themeProvider.notifier).toggleTheme();
+        HapticFeedback.lightImpact();
+      },
+      icon: Icon(
+        themeState == AppThemeMode.dark ? Icons.light_mode : Icons.dark_mode,
+      ),
+      style: IconButton.styleFrom(
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
       ),
     );
   }
 
-  String _getScreenTitle() {
-    return _navItems[_currentIndex].label;
-  }
-
-  void _onDrawerItemTapped(BuildContext context, int index) {
+  void _onNavigationTap(int index) {
     if (_currentIndex != index) {
       setState(() {
         _currentIndex = index;
       });
-
-      // Add haptic feedback
       HapticFeedback.lightImpact();
-
-      // Restart animation for smooth transition
-      _animationController.reset();
-      _animationController.forward();
-    }
-
-    // Close the drawer
-    Navigator.of(context).pop();
-  }
-
-  void _onSidebarItemTapped(int index) {
-    if (_currentIndex != index) {
-      setState(() {
-        _currentIndex = index;
-      });
-
-      // Add haptic feedback
-      HapticFeedback.lightImpact();
-
-      // Restart animation for smooth transition
-      _animationController.reset();
-      _animationController.forward();
     }
   }
 
-  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+  void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
           ),
-          title: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.errorColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.logout,
-                  color: AppTheme.errorColor,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Sign Out',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ],
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              ref.read(authNotifierProvider.notifier).logout();
+            },
+            child: const Text('Logout'),
           ),
-          content: Text(
-            'Are you sure you want to sign out of your account?',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ref.read(authNotifierProvider.notifier).logout();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.errorColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Sign Out'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -1137,7 +807,7 @@ class NavItem {
   final String label;
   final Color color;
 
-  NavItem({
+  const NavItem({
     required this.icon,
     required this.activeIcon,
     required this.label,

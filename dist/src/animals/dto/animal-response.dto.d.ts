@@ -1,4 +1,4 @@
-import { AnimalSpecies } from '@prisma/client';
+import { AnimalSpecies, AnimalGender } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 export declare class AnimalResponseDto {
     id: string;
@@ -6,6 +6,7 @@ export declare class AnimalResponseDto {
     species: AnimalSpecies;
     breed?: string | null;
     age?: number | null;
+    gender: AnimalGender;
     description?: string | null;
     tokenId?: string | null;
     tokenSerialNumber?: string | null;

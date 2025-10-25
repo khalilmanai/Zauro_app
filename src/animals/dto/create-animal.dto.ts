@@ -1,17 +1,17 @@
 import { IsString, IsEnum, IsOptional, IsInt, IsDecimal, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { AnimalSpecies } from '@prisma/client';
+import { AnimalSpecies, AnimalGender } from '@prisma/client';
 
 export class CreateAnimalDto {
   @ApiProperty({
-    example: 'Buddy',
+    example: 'Bella',
     description: 'Name of the animal'
   })
   @IsString()
   name: string;
 
   @ApiProperty({
-    example: 'DOG',
+    example: 'COW',
     description: 'Species of the animal',
     enum: AnimalSpecies,
     enumName: 'AnimalSpecies'
@@ -20,13 +20,22 @@ export class CreateAnimalDto {
   species: AnimalSpecies;
 
   @ApiProperty({
-    example: 'Golden Retriever',
+    example: 'Holstein Friesian',
     description: 'Breed of the animal (optional)',
     required: false
   })
   @IsOptional()
   @IsString()
   breed?: string;
+
+  @ApiProperty({
+    example: 'FEMALE',
+    description: 'Gender of the animal',
+    enum: AnimalGender,
+    enumName: 'AnimalGender'
+  })
+  @IsEnum(AnimalGender)
+  gender: AnimalGender;
 
   @ApiProperty({
     example: 3,
@@ -42,7 +51,7 @@ export class CreateAnimalDto {
   age?: number;
 
   @ApiProperty({
-    example: 'Friendly and energetic dog, great with children and other pets. Fully house trained and loves outdoor activities.',
+    example: 'Healthy cow with excellent milk production. Vaccinated and well-fed. Good temperament and adapts well to different farm conditions.',
     description: 'Detailed description of the animal (optional)',
     required: false
   })

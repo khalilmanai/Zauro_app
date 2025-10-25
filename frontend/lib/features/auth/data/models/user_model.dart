@@ -30,6 +30,9 @@ class UserModel extends HiveObject {
   @HiveField(7)
   final String? phone;
 
+  @HiveField(8)
+  final String? country;
+
   UserModel({
     required this.id,
     required this.email,
@@ -39,6 +42,7 @@ class UserModel extends HiveObject {
     required this.isVerified,
     this.lastLoginAt,
     this.phone,
+    this.country,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) =>
@@ -57,6 +61,7 @@ class UserModel extends HiveObject {
     bool? isVerified,
     DateTime? lastLoginAt,
     String? phone,
+    String? country,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -67,6 +72,7 @@ class UserModel extends HiveObject {
       isVerified: isVerified ?? this.isVerified,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       phone: phone ?? this.phone,
+      country: country ?? this.country,
     );
   }
 

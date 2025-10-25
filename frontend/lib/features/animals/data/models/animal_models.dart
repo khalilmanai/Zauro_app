@@ -10,6 +10,7 @@ class Animal {
   final String species;
   final String? breed;
   final int? age;
+  final String gender;
   final String? description;
   final String? tokenId;
   final String? tokenSerialNumber;
@@ -28,6 +29,7 @@ class Animal {
     required this.species,
     this.breed,
     this.age,
+    required this.gender,
     this.description,
     this.tokenId,
     this.tokenSerialNumber,
@@ -50,6 +52,7 @@ class Animal {
     String? species,
     String? breed,
     int? age,
+    String? gender,
     String? description,
     String? tokenId,
     String? tokenSerialNumber,
@@ -68,6 +71,7 @@ class Animal {
       species: species ?? this.species,
       breed: breed ?? this.breed,
       age: age ?? this.age,
+      gender: gender ?? this.gender,
       description: description ?? this.description,
       tokenId: tokenId ?? this.tokenId,
       tokenSerialNumber: tokenSerialNumber ?? this.tokenSerialNumber,
@@ -84,20 +88,27 @@ class Animal {
 
   String get displaySpecies {
     switch (species) {
-      case 'DOG':
-        return 'Dog';
-      case 'CAT':
-        return 'Cat';
-      case 'BIRD':
-        return 'Bird';
-      case 'FISH':
-        return 'Fish';
-      case 'REPTILE':
-        return 'Reptile';
+      case 'COW':
+        return 'Cow';
+      case 'GOAT':
+        return 'Goat';
+      case 'SHEEP':
+        return 'Sheep';
       case 'OTHER':
         return 'Other';
       default:
         return species;
+    }
+  }
+
+  String get displayGender {
+    switch (gender) {
+      case 'MALE':
+        return 'Male';
+      case 'FEMALE':
+        return 'Female';
+      default:
+        return gender;
     }
   }
 
@@ -139,6 +150,7 @@ class CreateAnimalRequest {
   final String species;
   final String? breed;
   final int? age;
+  final String gender;
   final String? description;
   final double? aiPredictionValue;
 
@@ -147,6 +159,7 @@ class CreateAnimalRequest {
     required this.species,
     this.breed,
     this.age,
+    required this.gender,
     this.description,
     this.aiPredictionValue,
   });
@@ -163,6 +176,7 @@ class UpdateAnimalRequest {
   final String? species;
   final String? breed;
   final int? age;
+  final String? gender;
   final String? description;
   final double? aiPredictionValue;
 
@@ -171,6 +185,7 @@ class UpdateAnimalRequest {
     this.species,
     this.breed,
     this.age,
+    this.gender,
     this.description,
     this.aiPredictionValue,
   });

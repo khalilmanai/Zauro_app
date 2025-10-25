@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, AnimalSpecies, TradeStatus } from '@prisma/client';
+import { PrismaClient, UserRole, AnimalSpecies, AnimalGender, TradeStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -141,9 +141,10 @@ async function main() {
     // Trader 1's animals
     {
       name: 'Buddy',
-      species: AnimalSpecies.DOG,
+      species: AnimalSpecies.OTHER,
       breed: 'Golden Retriever',
       age: 3,
+      gender: AnimalGender.MALE,
       description: 'Friendly and energetic golden retriever. Great with kids and other pets.',
       ownerId: trader1.id,
       tokenId: '0.0.200001',
@@ -155,9 +156,10 @@ async function main() {
     },
     {
       name: 'Whiskers',
-      species: AnimalSpecies.CAT,
+      species: AnimalSpecies.OTHER,
       breed: 'Persian',
       age: 2,
+      gender: AnimalGender.FEMALE,
       description: 'Beautiful Persian cat with long, silky fur. Very calm and affectionate.',
       ownerId: trader1.id,
       tokenId: '0.0.200002',
@@ -169,9 +171,10 @@ async function main() {
     },
     {
       name: 'Charlie',
-      species: AnimalSpecies.DOG,
+      species: AnimalSpecies.OTHER,
       breed: 'Labrador',
       age: 4,
+      gender: AnimalGender.MALE,
       description: 'Loyal Labrador with excellent training. Perfect family companion.',
       ownerId: trader1.id,
       tokenId: '0.0.200003',
@@ -185,9 +188,10 @@ async function main() {
     // Trader 2's animals
     {
       name: 'Bella',
-      species: AnimalSpecies.DOG,
+      species: AnimalSpecies.OTHER,
       breed: 'German Shepherd',
       age: 5,
+      gender: AnimalGender.FEMALE,
       description: 'Intelligent German Shepherd with guard training. Very protective and loyal.',
       ownerId: trader2.id,
       tokenId: '0.0.200004',
@@ -199,9 +203,10 @@ async function main() {
     },
     {
       name: 'Mittens',
-      species: AnimalSpecies.CAT,
+      species: AnimalSpecies.OTHER,
       breed: 'Maine Coon',
       age: 1,
+      gender: AnimalGender.FEMALE,
       description: 'Playful Maine Coon kitten. Very social and loves attention.',
       ownerId: trader2.id,
       tokenId: '0.0.200005',
@@ -213,9 +218,10 @@ async function main() {
     },
     {
       name: 'Rainbow',
-      species: AnimalSpecies.BIRD,
+      species: AnimalSpecies.OTHER,
       breed: 'Macaw',
       age: 7,
+      gender: AnimalGender.MALE,
       description: 'Colorful Macaw with excellent vocabulary. Can speak over 50 words.',
       ownerId: trader2.id,
       tokenId: '0.0.200006',
@@ -229,9 +235,10 @@ async function main() {
     // Admin's animals
     {
       name: 'Rex',
-      species: AnimalSpecies.DOG,
+      species: AnimalSpecies.OTHER,
       breed: 'Rottweiler',
       age: 6,
+      gender: AnimalGender.MALE,
       description: 'Strong and loyal Rottweiler with excellent temperament.',
       ownerId: adminUser.id,
       tokenId: '0.0.200007',
@@ -245,9 +252,10 @@ async function main() {
     // Regular user's animals
     {
       name: 'Nemo',
-      species: AnimalSpecies.FISH,
+      species: AnimalSpecies.OTHER,
       breed: 'Clownfish',
       age: 1,
+      gender: AnimalGender.MALE,
       description: 'Beautiful clownfish in excellent health. Great for aquarium enthusiasts.',
       ownerId: regularUser.id,
       tokenId: '0.0.200008',

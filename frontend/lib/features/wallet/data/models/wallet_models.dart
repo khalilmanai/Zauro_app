@@ -274,6 +274,24 @@ class WalletResponse {
   Map<String, dynamic> toJson() => _$WalletResponseToJson(this);
 }
 
+// Fund Account Request - New DTO matching backend FundAccountDto
+@JsonSerializable()
+class FundAccountRequest {
+  final String? accountId; // Optional for direct account funding
+  final String amount;
+  final String? memo;
+
+  const FundAccountRequest({
+    this.accountId,
+    required this.amount,
+    this.memo,
+  });
+
+  factory FundAccountRequest.fromJson(Map<String, dynamic> json) =>
+      _$FundAccountRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$FundAccountRequestToJson(this);
+}
+
 // Legacy Send Transaction Request - Kept for backward compatibility
 @JsonSerializable()
 class SendTransactionRequest {

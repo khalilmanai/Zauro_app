@@ -104,10 +104,6 @@ abstract class ApiClient {
   @DELETE('/animals/{id}')
   Future<ApiResponse<MessageResponse>> deleteAnimal(@Path('id') String id);
 
-  // File upload endpoints - implement separately with Dio directly
-  // @POST('/animals/{id}/upload-image')
-  // @POST('/animals/{id}/upload-vet-record')
-
   // Trading Endpoints
   @POST('/trades/list')
   Future<ApiResponse<Trade>> createTrade(@Body() CreateTradeRequest request);
@@ -151,6 +147,18 @@ abstract class ApiClient {
 
   @GET('/wallets/{id}/balance')
   Future<ApiResponse<WalletBalance>> getWalletBalance(@Path('id') String id);
+
+  @POST('/wallets/fund/my-account')
+  Future<ApiResponse<TransferResponse>> fundMyAccount(
+      @Body() FundAccountRequest request);
+
+  @POST('/wallets/fund/account')
+  Future<ApiResponse<TransferResponse>> fundAccount(
+      @Body() FundAccountRequest request);
+
+  @POST('/wallets/create-with-balance')
+  Future<ApiResponse<WalletResponse>> createWalletWithBalance(
+      @Body() FundAccountRequest request);
 }
 
 // Response Transform Interceptor

@@ -28,7 +28,7 @@ class AnimalDetailScreen extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.grey700),
+          icon: Icon(Icons.arrow_back_ios, color: AppTheme.grey700),
         ),
         actions: [
           PopupMenuButton<String>(
@@ -53,12 +53,12 @@ class AnimalDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
                 child: Row(
                   children: [
                     Icon(Icons.delete, size: 20, color: AppTheme.errorColor),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Text(
                       'Delete Animal',
                       style: TextStyle(color: AppTheme.errorColor),
@@ -97,7 +97,7 @@ class AnimalDetailScreen extends ConsumerWidget {
       width: double.infinity,
       height: 300,
       color: AppTheme.grey200,
-      child: const Center(
+      child: Center(
         child: Icon(Icons.pets, size: 80, color: AppTheme.grey400),
       ),
     );
@@ -118,17 +118,17 @@ class AnimalDetailScreen extends ConsumerWidget {
               color: AppTheme.grey900,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             children: [
               _buildInfoChip('Species', 'Dog'),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               _buildInfoChip('Breed', 'Golden Retriever'),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               _buildInfoChip('Age', '3 years'),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'Description',
             style: GoogleFonts.poppins(
@@ -137,7 +137,7 @@ class AnimalDetailScreen extends ConsumerWidget {
               color: AppTheme.grey900,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'This is a placeholder description for the animal. In a real implementation, this would contain the actual description from the backend.',
             style: GoogleFonts.poppins(
@@ -176,7 +176,7 @@ class AnimalDetailScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.lightShadow,
+        boxShadow: AppTheme.getLightShadow(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,13 +190,13 @@ class AnimalDetailScreen extends ConsumerWidget {
                   color: AppTheme.successColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.verified,
                   color: AppTheme.successColor,
                   size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,11 +221,11 @@ class AnimalDetailScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _buildNFTInfo('Token ID', '0.0.123456'),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _buildNFTInfo('Serial Number', '1'),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _buildNFTInfo('AI Valuation', '150.00 HBAR'),
         ],
       ),
@@ -280,7 +280,7 @@ class AnimalDetailScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -303,7 +303,7 @@ class AnimalDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {
@@ -335,14 +335,14 @@ class AnimalDetailScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Animal'),
-        content: const Text(
+        title: Text('Delete Animal'),
+        content: Text(
           'Are you sure you want to delete this animal? This action cannot be undone and will burn the NFT.',
         ),
         actions: [
           TextButton(
             onPressed: () => context.pop(),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -352,7 +352,7 @@ class AnimalDetailScreen extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
             ),
-            child: const Text('Delete'),
+            child: Text('Delete'),
           ),
         ],
       ),

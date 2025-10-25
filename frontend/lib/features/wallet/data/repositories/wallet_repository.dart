@@ -17,9 +17,10 @@ class WalletRepository {
   /// Create a new wallet for the authenticated user
   Future<WalletResponse> createWallet() async {
     try {
-      final request = const CreateWalletRequest(); // Empty request, uses auth user
+      final request =
+          const CreateWalletRequest(); // Empty request, uses auth user
       final response = await _apiClient.createWallet(request);
-      
+
       if (response.success && response.data != null) {
         return response.data!;
       } else {
@@ -35,7 +36,7 @@ class WalletRepository {
   Future<WalletResponse> getMyWallet() async {
     try {
       final response = await _apiClient.getMyWallet();
-      
+
       if (response.success && response.data != null) {
         return response.data!;
       } else {
@@ -51,7 +52,7 @@ class WalletRepository {
   Future<WalletBalance> getMyWalletBalance() async {
     try {
       final response = await _apiClient.getMyWalletBalance();
-      
+
       if (response.success && response.data != null) {
         return response.data!;
       } else {
@@ -86,7 +87,7 @@ class WalletRepository {
       );
 
       final response = await _apiClient.transferHbar(request);
-      
+
       if (response.success && response.data != null) {
         return response.data!;
       } else {
@@ -102,7 +103,7 @@ class WalletRepository {
   Future<WalletResponse> getWallet(String id) async {
     try {
       final response = await _apiClient.getWallet(id);
-      
+
       if (response.success && response.data != null) {
         return response.data!;
       } else {
@@ -118,7 +119,7 @@ class WalletRepository {
   Future<WalletBalance> getWalletBalance(String id) async {
     try {
       final response = await _apiClient.getWalletBalance(id);
-      
+
       if (response.success && response.data != null) {
         return response.data!;
       } else {
@@ -127,6 +128,101 @@ class WalletRepository {
     } catch (e) {
       if (e is ServerFailure) rethrow;
       throw ServerFailure(message: 'Failed to get wallet balance: $e');
+    }
+  }
+
+  /// Fund the authenticated user's wallet with HBAR
+  Future<TransferResponse> fundMyAccount({
+    required String amount,
+    String? memo,
+  }) async {
+    try {
+      // Validate amount
+      final amountDouble = double.tryParse(amount);
+      if (amountDouble == null || amountDouble <= 0) {
+        throw ValidationFailure(message: 'Invalid amount');
+      }
+
+      final request = FundAccountRequest(
+        amount: amount,
+        memo: memo,
+      );
+
+      final response = await _apiClient.fundMyAccount(request);
+
+      if (response.success && response.data != null) {
+        return response.data!;
+      } else {
+        throw ServerFailure(message: response.message);
+      }
+    } catch (e) {
+      if (e is ServerFailure || e is ValidationFailure) rethrow;
+      throw ServerFailure(message: 'Failed to fund account: $e');
+    }
+  }
+
+  /// Fund any Hedera account with HBAR
+  Future<TransferResponse> fundAccount({
+    required String accountId,
+    required String amount,
+    String? memo,
+  }) async {
+    try {
+      // Validate Hedera account ID format
+      if (!_isValidHederaAccountId(accountId)) {
+        throw ValidationFailure(message: 'Invalid Hedera account ID format');
+      }
+
+      // Validate amount
+      final amountDouble = double.tryParse(amount);
+      if (amountDouble == null || amountDouble <= 0) {
+        throw ValidationFailure(message: 'Invalid amount');
+      }
+
+      final request = FundAccountRequest(
+        accountId: accountId,
+        amount: amount,
+        memo: memo,
+      );
+
+      final response = await _apiClient.fundAccount(request);
+
+      if (response.success && response.data != null) {
+        return response.data!;
+      } else {
+        throw ServerFailure(message: response.message);
+      }
+    } catch (e) {
+      if (e is ServerFailure || e is ValidationFailure) rethrow;
+      throw ServerFailure(message: 'Failed to fund account: $e');
+    }
+  }
+
+  /// Create a new wallet with custom initial HBAR balance
+  Future<WalletResponse> createWalletWithBalance({
+    required String amount,
+  }) async {
+    try {
+      // Validate amount
+      final amountDouble = double.tryParse(amount);
+      if (amountDouble == null || amountDouble <= 0) {
+        throw ValidationFailure(message: 'Invalid amount');
+      }
+
+      final request = FundAccountRequest(
+        amount: amount,
+      );
+
+      final response = await _apiClient.createWalletWithBalance(request);
+
+      if (response.success && response.data != null) {
+        return response.data!;
+      } else {
+        throw ServerFailure(message: response.message);
+      }
+    } catch (e) {
+      if (e is ServerFailure || e is ValidationFailure) rethrow;
+      throw ServerFailure(message: 'Failed to create wallet with balance: $e');
     }
   }
 

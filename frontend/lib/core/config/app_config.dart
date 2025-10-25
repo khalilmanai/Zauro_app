@@ -27,7 +27,7 @@ class AppConfig {
     } else {
       return const String.fromEnvironment(
         'DEV_API_BASE_URL',
-        defaultValue: 'http://10.171.0.14:3000',
+        defaultValue: 'http://10.0.2.2:3002',
       );
     }
   }
@@ -85,12 +85,16 @@ class AppConfig {
 
   // Animal Species
   static const List<String> animalSpecies = [
-    'DOG',
-    'CAT',
-    'BIRD',
-    'FISH',
-    'REPTILE',
+    'COW',
+    'GOAT',
+    'SHEEP',
     'OTHER',
+  ];
+
+  // Animal Genders
+  static const List<String> animalGenders = [
+    'MALE',
+    'FEMALE',
   ];
 
   // User Roles

@@ -52,6 +52,7 @@ TradeAnimal _$TradeAnimalFromJson(Map<String, dynamic> json) => TradeAnimal(
       species: json['species'] as String,
       breed: json['breed'] as String?,
       age: (json['age'] as num?)?.toInt(),
+      gender: json['gender'] as String,
       imageUrl: json['imageUrl'] as String?,
       tokenId: json['tokenId'] as String?,
     );
@@ -63,6 +64,7 @@ Map<String, dynamic> _$TradeAnimalToJson(TradeAnimal instance) =>
       'species': instance.species,
       'breed': instance.breed,
       'age': instance.age,
+      'gender': instance.gender,
       'imageUrl': instance.imageUrl,
       'tokenId': instance.tokenId,
     };

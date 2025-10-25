@@ -69,6 +69,36 @@ class StorageService {
     return _prefs.getBool(AppConfig.onboardingKey) ?? false;
   }
 
+  // Remember Me functionality
+  static Future<void> setRememberMe(bool remember) async {
+    await _prefs.setBool('remember_me', remember);
+  }
+
+  static bool getRememberMe() {
+    return _prefs.getBool('remember_me') ?? false;
+  }
+
+  static Future<void> setRememberMeCredentials(String email, String password) async {
+    if (getRememberMe()) {
+      await _secureStorage.write(key: 'remembered_email', value: email);
+      await _secureStorage.write(key: 'remembered_password', value: password);
+    }
+  }
+
+  static Future<Map<String, String?>> getRememberedCredentials() async {
+    if (getRememberMe()) {
+      final email = await _secureStorage.read(key: 'remembered_email');
+      final password = await _secureStorage.read(key: 'remembered_password');
+      return {'email': email, 'password': password};
+    }
+    return {'email': null, 'password': null};
+  }
+
+  static Future<void> clearRememberedCredentials() async {
+    await _secureStorage.delete(key: 'remembered_email');
+    await _secureStorage.delete(key: 'remembered_password');
+  }
+
   // Cache Management
   static Future<void> setCacheData(
     String key,

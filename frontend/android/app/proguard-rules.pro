@@ -48,3 +48,12 @@
 # Keep custom attributes
 -keepattributes *Annotation*,InnerClasses,Signature,SourceFile,LineNumberTable
 
+# Keep Google Play Core library classes
+-keep class com.google.android.play.core.** { *; }
+-dontwarn com.google.android.play.core.**
+
+# Keep Apache Tika classes (if used)
+-keep class org.apache.tika.** { *; }
+-dontwarn org.apache.tika.**
+-dontwarn javax.xml.stream.**
+

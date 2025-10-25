@@ -12,6 +12,7 @@ Animal _$AnimalFromJson(Map<String, dynamic> json) => Animal(
       species: json['species'] as String,
       breed: json['breed'] as String?,
       age: (json['age'] as num?)?.toInt(),
+      gender: json['gender'] as String,
       description: json['description'] as String?,
       tokenId: json['tokenId'] as String?,
       tokenSerialNumber: json['tokenSerialNumber'] as String?,
@@ -33,6 +34,7 @@ Map<String, dynamic> _$AnimalToJson(Animal instance) => <String, dynamic>{
       'species': instance.species,
       'breed': instance.breed,
       'age': instance.age,
+      'gender': instance.gender,
       'description': instance.description,
       'tokenId': instance.tokenId,
       'tokenSerialNumber': instance.tokenSerialNumber,
@@ -67,6 +69,7 @@ CreateAnimalRequest _$CreateAnimalRequestFromJson(Map<String, dynamic> json) =>
       species: json['species'] as String,
       breed: json['breed'] as String?,
       age: (json['age'] as num?)?.toInt(),
+      gender: json['gender'] as String,
       description: json['description'] as String?,
       aiPredictionValue: (json['aiPredictionValue'] as num?)?.toDouble(),
     );
@@ -78,6 +81,7 @@ Map<String, dynamic> _$CreateAnimalRequestToJson(
       'species': instance.species,
       'breed': instance.breed,
       'age': instance.age,
+      'gender': instance.gender,
       'description': instance.description,
       'aiPredictionValue': instance.aiPredictionValue,
     };
@@ -88,6 +92,7 @@ UpdateAnimalRequest _$UpdateAnimalRequestFromJson(Map<String, dynamic> json) =>
       species: json['species'] as String?,
       breed: json['breed'] as String?,
       age: (json['age'] as num?)?.toInt(),
+      gender: json['gender'] as String?,
       description: json['description'] as String?,
       aiPredictionValue: (json['aiPredictionValue'] as num?)?.toDouble(),
     );
@@ -99,6 +104,7 @@ Map<String, dynamic> _$UpdateAnimalRequestToJson(
       'species': instance.species,
       'breed': instance.breed,
       'age': instance.age,
+      'gender': instance.gender,
       'description': instance.description,
       'aiPredictionValue': instance.aiPredictionValue,
     };

@@ -23,38 +23,83 @@ class AuthRepository {
     required String password,
     required String firstName,
     required String lastName,
+    String? country,
   }) async {
     try {
-      final request = RegisterRequest(
-        email: email,
-        phone: phone,
-        password: password,
-        firstName: firstName,
-        lastName: lastName,
-      );
+      // Validate phone (if provided) to avoid backend 400
+      if (phone != null && phone.isNotEmpty) {
+        final phoneRegex = RegExp(r'^\+?[\d\s\-\(\)]+$');
+        if (!phoneRegex.hasMatch(phone)) {
+          throw Exception('Please enter a valid phone number');
+        }
+      }
 
-      final response = await _apiClient.register(request);
+      // Build payload and intentionally omit avatarUrl because backend validation
+      // rejects the presence of that property on register requests.
+      final Map<String, dynamic> payload = {
+        'email': email,
+        'phone': phone?.isNotEmpty == true ? phone : null,
+        'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
+        // include country if provided
+        'country': country,
+      };
+      // remove null values
+      payload.removeWhere((k, v) => v == null);
 
-      if (response.success && response.data != null) {
+      // Use the underlying Dio instance from the generated ApiClient to send a raw request
+      final dio = (_apiClient as dynamic).dio as Dio;
+      final rawResp = await dio.post('/auth/register', data: payload);
+
+      // Normalize response: backend might return either direct auth object or ApiResponse wrapper
+      final Map<String, dynamic> respData = (rawResp.data is Map)
+          ? Map<String, dynamic>.from(rawResp.data)
+          : {'data': rawResp.data};
+      Map<String, dynamic> apiMap;
+      if (respData.containsKey('success') || respData.containsKey('message')) {
+        apiMap = respData;
+      } else if (respData.containsKey('accessToken') &&
+          respData.containsKey('user')) {
+        apiMap = {
+          'success': true,
+          'message': 'Authentication successful',
+          'data': respData,
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+      } else {
+        apiMap = {
+          'success': false,
+          'message': 'Unexpected response',
+          'timestamp': DateTime.now().toIso8601String()
+        };
+      }
+
+      final apiResponse = ApiResponse.fromJson(apiMap,
+          (json) => AuthResponse.fromJson(json as Map<String, dynamic>));
+
+      if (apiResponse.success && apiResponse.data != null) {
+        final response = apiResponse.data!;
         // Store tokens
-        await StorageService.setAccessToken(response.data!.accessToken);
-        await StorageService.setRefreshToken(response.data!.refreshToken);
+        await StorageService.setAccessToken(response.accessToken);
+        await StorageService.setRefreshToken(response.refreshToken);
 
         // Store user data
         final userModel = UserModel(
-          id: response.data!.user.id,
-          email: response.data!.user.email,
-          firstName: response.data!.user.firstName,
-          lastName: response.data!.user.lastName,
-          role: response.data!.user.role,
-          isVerified: response.data!.user.isVerified,
-          lastLoginAt: response.data!.user.lastLoginAt,
+          id: response.user.id,
+          email: response.user.email,
+          firstName: response.user.firstName,
+          lastName: response.user.lastName,
+          role: response.user.role,
+          isVerified: response.user.isVerified,
+          lastLoginAt: response.user.lastLoginAt,
+          country: response.user.country,
         );
         await StorageService.setUserData(userModel);
 
-        return response.data!;
+        return response;
       } else {
-        throw Exception(response.message);
+        throw Exception(apiResponse.message);
       }
     } on DioException catch (e) {
       throw _handleDioError(e);
@@ -67,6 +112,7 @@ class AuthRepository {
   Future<AuthResponse> login({
     required String email,
     required String password,
+    bool rememberMe = false,
   }) async {
     try {
       final request = LoginRequest(email: email, password: password);
@@ -86,8 +132,17 @@ class AuthRepository {
           role: response.data!.user.role,
           isVerified: response.data!.user.isVerified,
           lastLoginAt: response.data!.user.lastLoginAt,
+          country: response.data!.user.country,
         );
         await StorageService.setUserData(userModel);
+
+        // Handle remember me functionality
+        await StorageService.setRememberMe(rememberMe);
+        if (rememberMe) {
+          await StorageService.setRememberMeCredentials(email, password);
+        } else {
+          await StorageService.clearRememberedCredentials();
+        }
 
         return response.data!;
       } else {
@@ -105,6 +160,8 @@ class AuthRepository {
     try {
       await StorageService.clearTokens();
       await StorageService.clearUserData();
+      await StorageService.clearRememberedCredentials();
+      await StorageService.setRememberMe(false);
     } catch (e) {
       throw Exception('Logout failed: ${e.toString()}');
     }

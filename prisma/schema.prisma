@@ -29,12 +29,16 @@ enum TradeStatus {
 
 // Animal species enum
 enum AnimalSpecies {
-  DOG
-  CAT
-  BIRD
-  FISH
-  REPTILE
+  COW
+  GOAT
+  SHEEP
   OTHER
+}
+
+// Animal gender enum
+enum AnimalGender {
+  MALE
+  FEMALE
 }
 
 // OTP type enum
@@ -96,6 +100,7 @@ model Animal {
   species         AnimalSpecies
   breed           String?
   age             Int?
+  gender          AnimalGender
   description     String?
   
   // NFT metadata
@@ -114,7 +119,7 @@ model Animal {
   updatedAt DateTime @updatedAt
   
   // Relations
-  owner User @relation(fields: [ownerId], references: [id])
+  owner User @relation(fields: [ownerId], references: [id]) 
   trades Trade[]
   
   @@map("animals")

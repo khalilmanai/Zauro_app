@@ -1,57 +1,123 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/utils/responsive_utils.dart';
-import '../../../../core/widgets/ai_enhanced_widgets.dart';
 import '../../../../core/widgets/responsive_button_row.dart';
+import '../../../../core/widgets/neon_glow_widget.dart';
+import '../../../../core/widgets/premium_card.dart';
+import '../../../../core/widgets/premium_button.dart';
+import '../../../../core/widgets/enhanced_loader.dart' as Enhanced;
 import '../../../auth/providers/auth_provider.dart';
 import '../../../shared/presentation/widgets/loading_overlay.dart';
+import '../../../wallet/data/models/wallet_models.dart';
 import '../../../wallet/providers/wallet_provider.dart';
+import '../../../animals/providers/animals_provider.dart';
+import '../../../trading/providers/trading_provider.dart';
+import '../../../trading/data/models/trade_models.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with SingleTickerProviderStateMixin {
+  final _searchController = TextEditingController();
+  String _selectedFilter = 'All';
+  final List<String> _filters = [
+    'All',
+    'Dogs',
+    'Cats',
+    'Birds',
+    'Fish',
+    'Other'
+  ];
+  late AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final walletState = ref.watch(walletProvider);
+    final walletBalanceState = ref.watch(walletBalanceProvider);
+    final marketplaceState = ref.watch(marketplaceProvider);
     final isDesktop = context.isDesktop;
     final user = authState.user;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: LoadingOverlay(
-        isLoading: authState.isLoading || walletState.isLoading,
+        isLoading: authState.isLoading ||
+            walletState.isLoading ||
+            marketplaceState.isLoading,
         child: RefreshIndicator(
           onRefresh: () async {
-            // Refresh wallet data
-            await ref.read(walletProvider.notifier).refresh();
+            await Future.wait([
+              ref.read(walletProvider.notifier).refresh(),
+              ref.read(walletBalanceProvider.notifier).refresh(),
+              ref.read(myAnimalsProvider.notifier).refresh(),
+              ref.read(marketplaceProvider.notifier).refresh(),
+            ]);
           },
           child: CustomScrollView(
             slivers: [
               _buildEnhancedHeader(context, ref, user),
               SliverPadding(
-                padding: ResponsiveUtils.responsivePadding(context),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.responsive(
+                    mobile: 16.0,
+                    tablet: 24.0,
+                    desktop: 32.0,
+                  ),
+                  vertical: context.responsive(
+                    mobile: 20.0,
+                    tablet: 24.0,
+                    desktop: 32.0,
+                  ),
+                ),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    _buildWelcomeSection(context, user),
+                    if (isDesktop) _buildWelcomeSection(context, user),
+                    if (isDesktop)
+                      SizedBox(
+                          height:
+                              context.responsive(mobile: 24.0, desktop: 32.0)),
+                    _buildQuickActions(context),
                     SizedBox(
                         height:
                             context.responsive(mobile: 24.0, desktop: 32.0)),
-                    _buildStatsOverview(context, ref, walletState),
+                    _buildStatsOverview(context, ref, walletBalanceState),
                     SizedBox(
                         height:
                             context.responsive(mobile: 32.0, desktop: 40.0)),
-                    if (isDesktop)
-                      _buildDesktopLayout(context, ref)
-                    else
-                      _buildMobileLayout(context, ref),
+                    _buildSearchAndFilter(context),
+                    const SizedBox(height: 24),
+                    _buildMarketplaceSection(context, ref, marketplaceState),
                     SizedBox(
                         height:
-                            context.responsive(mobile: 80.0, desktop: 40.0)),
+                            context.responsive(mobile: 60.0, desktop: 40.0)),
                   ]),
                 ),
               ),
@@ -65,619 +131,933 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildEnhancedHeader(
       BuildContext context, WidgetRef ref, dynamic user) {
     final isDesktop = context.isDesktop;
+    final isMobile = context.isMobile;
     final userName = user?.fullName ?? 'User';
-    final userEmail = user?.email ?? '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SliverAppBar(
-      expandedHeight: isDesktop ? 0 : 140,
+      expandedHeight: isMobile ? 140 : 0,
       floating: false,
-      pinned: !isDesktop,
+      pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.getCardBackground(context),
       elevation: 0,
+      shadowColor: isDark
+          ? AppTheme.transparent
+          : AppTheme.withOpacity(AppTheme.black, 0.12),
+      surfaceTintColor: AppTheme.transparent,
       title: isDesktop ? _buildDesktopHeaderTitle(context, userName) : null,
       actions: isDesktop
           ? [
-              Container(
-                margin: const EdgeInsets.only(right: 16),
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildHeaderAction(
-                      context: context,
-                      icon: Icons.refresh,
-                      onTap: () => ref.read(walletProvider.notifier).refresh(),
-                      tooltip: 'Refresh Data',
-                    ),
-                    const SizedBox(width: 12),
-                    _buildHeaderAction(
-                      context: context,
+                      context,
                       icon: Icons.notifications_outlined,
-                      onTap: () => _showNotifications(context),
-                      badgeCount: 3,
-                      tooltip: 'Notifications',
+                      badge: 3,
+                      onTap: () {
+                        // Handle notifications
+                      },
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     _buildHeaderAction(
-                      context: context,
-                      icon: ref.watch(themeProvider).icon,
-                      onTap: () =>
-                          ref.read(themeProvider.notifier).toggleTheme(),
-                      tooltip: 'Toggle Theme',
+                      context,
+                      icon: Icons.settings_outlined,
+                      onTap: () {
+                        // Handle settings
+                      },
                     ),
-                    const SizedBox(width: 12),
-                    _buildUserAvatar(context, userName, userEmail),
+                    const SizedBox(width: 16),
+                    _buildThemeToggle(context, ref),
                   ],
                 ),
               ),
             ]
           : null,
-      flexibleSpace: isDesktop
-          ? null
-          : FlexibleSpaceBar(
-              background:
-                  _buildMobileHeaderBackground(context, userName, userEmail),
-            ),
+      flexibleSpace: isMobile
+          ? FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: AppTheme.getBrandGradientColors(),
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Row(
+                          children: [
+                            // Enhanced Avatar with glow
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.withOpacity(
+                                        AppTheme.white, 0.3),
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 28,
+                                backgroundColor:
+                                    AppTheme.withOpacity(AppTheme.white, 0.25),
+                                backgroundImage: user?.avatarUrl != null
+                                    ? NetworkImage(user!.avatarUrl!)
+                                    : null,
+                                child: user?.avatarUrl == null
+                                    ? Text(
+                                        user?.firstName
+                                                ?.substring(0, 1)
+                                                .toUpperCase() ??
+                                            'U',
+                                        style: GoogleFonts.poppins(
+                                          color: AppTheme.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // User info with better typography
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Welcome back,',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w400,
+                                      color: AppTheme.withOpacity(
+                                          AppTheme.white, 0.85),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    userName,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.white,
+                                      letterSpacing: -0.5,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Theme toggle
+                            _buildThemeToggle(context, ref),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
     );
   }
 
   Widget _buildDesktopHeaderTitle(BuildContext context, String userName) {
     return Row(
       children: [
-        Icon(
-          Icons.dashboard,
-          color: AppTheme.getPrimaryColor(context),
-          size: 28,
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Dashboard',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            Text(
-              '${_getGreeting()}, ${userName.split(' ').first}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUserAvatar(
-      BuildContext context, String userName, String userEmail) {
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 50),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppTheme.getPrimaryColor(context),
-              AppTheme.getAccentColor(context),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-            width: 2,
-          ),
-        ),
-        child: Center(
+        Expanded(
           child: Text(
-            userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ),
-      ),
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'profile',
-          child: Row(
-            children: [
-              const Icon(Icons.person_outline),
-              const SizedBox(width: 12),
-              Text('Profile'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'settings',
-          child: Row(
-            children: [
-              const Icon(Icons.settings_outlined),
-              const SizedBox(width: 12),
-              Text('Settings'),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'logout',
-          child: Row(
-            children: [
-              const Icon(Icons.logout, color: Colors.red),
-              const SizedBox(width: 12),
-              Text('Logout', style: TextStyle(color: Colors.red)),
-            ],
+            'Dashboard',
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
-      onSelected: (value) => _handleUserMenuAction(context, value),
     );
   }
 
-  Widget _buildMobileHeaderBackground(
-      BuildContext context, String userName, String userEmail) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.getPrimaryColor(context),
-            AppTheme.getPrimaryColor(context).withValues(alpha: 0.8),
-            AppTheme.getAccentColor(context).withValues(alpha: 0.6),
+  Widget _buildHeaderAction(
+    BuildContext context, {
+    required IconData icon,
+    int? badge,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: AppTheme.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppTheme.withOpacity(AppTheme.white, 0.1)
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark
+                      ? AppTheme.withOpacity(AppTheme.white, 0.1)
+                      : AppTheme.withOpacity(AppTheme.black, 0.05),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            if (badge != null && badge > 0)
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.red500,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.withOpacity(AppTheme.red500, 0.4),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    badge > 99 ? '99+' : badge.toString(),
+                    style: GoogleFonts.poppins(
+                      color: AppTheme.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
-          child: Row(
-            children: [
-              _buildUserAvatar(context, userName, userEmail),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${_getGreeting()}, ${userName.split(' ').first}!',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Welcome back to your marketplace',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              _buildHeaderAction(
-                context: context,
-                icon: Icons.notifications_outlined,
-                onTap: () => _showNotifications(context),
-                badgeCount: 3,
-                isLight: true,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _buildHeaderAction({
-    required BuildContext context,
-    required IconData icon,
-    required VoidCallback onTap,
-    int? badgeCount,
-    String? tooltip,
-    bool isLight = false,
-  }) {
-    Widget button = Stack(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
+  Widget _buildThemeToggle(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final themeState = ref.watch(themeProvider);
+    final isDark = themeState == AppThemeMode.dark;
+
+    return Material(
+      color: AppTheme.transparent,
+      child: InkWell(
+        onTap: () {
+          ref.read(themeProvider.notifier).toggleTheme();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: isLight
-                ? Colors.white.withValues(alpha: 0.2)
-                : AppTheme.getMutedColor(context),
+            color: isDark
+                ? Colors.white.withOpacity(0.15)
+                : theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isLight
-                  ? Colors.white.withValues(alpha: 0.3)
-                  : AppTheme.getBorderColor(context),
+              color: isDark
+                  ? Colors.white.withOpacity(0.2)
+                  : AppTheme.withOpacity(AppTheme.black, 0.05),
               width: 1,
             ),
           ),
-          child: IconButton(
-            onPressed: onTap,
-            icon: Icon(
-              icon,
-              size: 20,
-              color: isLight
-                  ? Colors.white
-                  : Theme.of(context).colorScheme.onSurface,
-            ),
-            padding: EdgeInsets.zero,
+          child: Icon(
+            isDark ? Icons.light_mode : Icons.dark_mode,
+            size: 20,
+            color: isDark ? AppTheme.white : theme.colorScheme.onSurface,
           ),
         ),
-        if (badgeCount != null && badgeCount > 0)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: AppTheme.errorColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
-              child: Text(
-                badgeCount > 99 ? '99+' : badgeCount.toString(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-      ],
-    );
-
-    return tooltip != null
-        ? Tooltip(
-            message: tooltip,
-            child: button,
-          )
-        : button;
-  }
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
-  void _handleUserMenuAction(BuildContext context, String action) {
-    switch (action) {
-      case 'profile':
-        context.go('/profile');
-        break;
-      case 'settings':
-        // Navigate to settings
-        break;
-      case 'logout':
-        _showLogoutDialog(context);
-        break;
-    }
-  }
-
-  void _showNotifications(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        minChildSize: 0.3,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).dividerColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Notifications',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: const Text('Mark all read'),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _buildNotificationItem(
-                      context,
-                      'New trade offer received',
-                      'Someone is interested in your Golden Retriever NFT',
-                      Icons.handshake,
-                      Colors.blue,
-                      '2 min ago',
-                    ),
-                    _buildNotificationItem(
-                      context,
-                      'Wallet funded successfully',
-                      'Your wallet has been credited with 50 HBAR',
-                      Icons.account_balance_wallet,
-                      Colors.green,
-                      '1 hour ago',
-                    ),
-                    _buildNotificationItem(
-                      context,
-                      'Market price alert',
-                      'Cat NFTs are trending up by 15%',
-                      Icons.trending_up,
-                      Colors.orange,
-                      '3 hours ago',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationItem(
-    BuildContext context,
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    String time,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.getBorderColor(context),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            time,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.go('/login');
-            },
-            child: const Text('Logout'),
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildWelcomeSection(BuildContext context, dynamic user) {
+    final theme = Theme.of(context);
     final userName = user?.fullName ?? 'User';
+    final isDark = theme.brightness == Brightness.dark;
 
-    if (context.isDesktop) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.getPrimaryColor(context),
-              AppTheme.getPrimaryColor(context).withValues(alpha: 0.8),
-              AppTheme.getAccentColor(context).withValues(alpha: 0.6),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  const Color(0xFF6366F1),
+                  const Color(0xFF8B5CF6),
+                  const Color(0xFFA855F7),
+                ]
+              : [
+                  const Color(0xFF8B5CF6),
+                  const Color(0xFFA855F7),
+                  const Color(0xFFEC4899),
+                ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8B5CF6).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          borderRadius: BorderRadius.circular(20),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back,',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.withOpacity(AppTheme.white, 0.85),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  userName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Ready to explore the Zauro Marketplace?',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    color: AppTheme.withOpacity(AppTheme.white, 0.9),
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 24),
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: AppTheme.withOpacity(AppTheme.white, 0.2),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: AppTheme.withOpacity(AppTheme.white, 0.3),
+                width: 2,
+              ),
+            ),
+            child: const Icon(
+              Icons.pets,
+              color: AppTheme.white,
+              size: 48,
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: const Duration(milliseconds: 600))
+        .slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = context.isDesktop;
+
+    final actions = [
+      {
+        'icon': Icons.add_circle_outline,
+        'label': 'List Animal',
+        'route': '/animals/add'
+      },
+      {'icon': Icons.wallet, 'label': 'Wallet', 'route': '/wallet'},
+      {'icon': Icons.store, 'label': 'Marketplace', 'route': '/marketplace'},
+      {'icon': Icons.pets, 'label': 'My Animals', 'route': '/animals'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: actions.asMap().entries.map((entry) {
+          final index = entry.key;
+          final action = entry.value;
+          return Padding(
+            padding: EdgeInsets.only(right: isDesktop ? 16 : 12),
+            child: _buildQuickActionButton(
+              context,
+              icon: action['icon'] as IconData,
+              label: action['label'] as String,
+              onTap: () => context.push(action['route'] as String),
+              delay: index * 100,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required int delay,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppTheme.getThemeAwareColor(context,
+              lightColor: AppTheme.white, darkColor: AppTheme.slate800),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? AppTheme.withOpacity(AppTheme.white, 0.1)
+                : AppTheme.withOpacity(AppTheme.black, 0.08),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.getPrimaryColor(context).withValues(alpha: 0.3),
-              blurRadius: 16,
-              spreadRadius: 2,
+              color: isDark
+                  ? Colors.black.withOpacity(0.3)
+                  : AppTheme.withOpacity(AppTheme.black, 0.05),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${_getGreeting()}, ${userName.split(' ').first}!',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Welcome to your AI-powered animal marketplace dashboard. Manage your NFTs, track trades, and explore new opportunities with intelligent insights.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildWelcomeActionButton(
-                        context,
-                        'Get Started',
-                        Icons.rocket_launch,
-                        () => context.go('/animals/add'),
-                      ),
-                      const SizedBox(width: 12),
-                      _buildWelcomeActionButton(
-                        context,
-                        'View Tutorial',
-                        Icons.play_circle_outline,
-                        () => _showTutorial(context),
-                        isOutlined: true,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 24),
             Container(
-              width: 80,
-              height: 80,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  ),
-                ],
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF8B5CF6),
+                    const Color(0xFFA855F7),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                Icons.auto_awesome,
-                color: Colors.white,
-                size: 40,
+                icon,
+                color: AppTheme.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? AppTheme.white : AppTheme.slate800,
               ),
             ),
           ],
         ),
-      );
-    }
-    return const SizedBox.shrink();
+      ),
+    )
+        .animate(delay: Duration(milliseconds: delay))
+        .fadeIn(duration: const Duration(milliseconds: 400))
+        .slideX(begin: 0.1, end: 0);
   }
 
-  Widget _buildWelcomeActionButton(
-    BuildContext context,
-    String text,
-    IconData icon,
-    VoidCallback onPressed, {
-    bool isOutlined = false,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(text),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isOutlined ? Colors.transparent : Colors.white,
-        foregroundColor:
-            isOutlined ? Colors.white : AppTheme.getPrimaryColor(context),
-        side:
-            isOutlined ? const BorderSide(color: Colors.white, width: 1) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+  Widget _buildStatsOverview(BuildContext context, WidgetRef ref,
+      AsyncValue<WalletBalance?> walletBalanceState) {
+    return walletBalanceState.when(
+      data: (balance) => _buildStatsCards(context, balance),
+      loading: () => _buildStatsLoading(context),
+      error: (error, stackTrace) => _buildStatsError(context, error),
     );
   }
 
-  void _showTutorial(BuildContext context) {
-    // Show tutorial modal or navigate to tutorial page
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tutorial'),
-        content: const Text('Tutorial feature coming soon!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+  Widget _buildStatsCards(BuildContext context, WalletBalance? balance) {
+    final isDesktop = context.isDesktop;
+    final isMobile = context.isMobile;
+
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: [
+        _buildEnhancedStatsCard(
+          context: context,
+          icon: Icons.account_balance_wallet,
+          title: 'HBAR Balance',
+          value: balance?.hbar ?? '0.00',
+          subtitle: 'Hedera Hashgraph',
+          color: AppTheme.blue500,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.blue500, AppTheme.blue600],
+          ),
+          onTap: () => context.push('/wallet'),
+          delay: 0,
+        ),
+        _buildEnhancedStatsCard(
+          context: context,
+          icon: Icons.token,
+          title: 'ZAU Balance',
+          value: balance?.zau ?? '0.00',
+          subtitle: 'Zauro Token',
+          color: AppTheme.green500,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.green500, AppTheme.teal500],
+          ),
+          onTap: () => context.push('/wallet'),
+          delay: 100,
+        ),
+        _buildEnhancedStatsCard(
+          context: context,
+          icon: Icons.pets,
+          title: 'Animals',
+          value: '0',
+          subtitle: 'My Collections',
+          color: AppTheme.orange500,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.orange500, AppTheme.pink500],
+          ),
+          onTap: () => context.push('/animals'),
+          delay: 200,
+        ),
+        _buildEnhancedStatsCard(
+          context: context,
+          icon: Icons.store,
+          title: 'Active Trades',
+          value: '0',
+          subtitle: 'Marketplace Activity',
+          color: AppTheme.purple500,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.purple500, AppTheme.violet500],
+          ),
+          onTap: () => context.push('/marketplace'),
+          delay: 300,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedStatsCard({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String value,
+    required String subtitle,
+    required Color color,
+    required Gradient gradient,
+    required VoidCallback onTap,
+    required int delay,
+  }) {
+    final isDesktop = context.isDesktop;
+    return Flexible(
+      child: SizedBox(
+        width: isDesktop ? 220 : double.infinity,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: EdgeInsets.all(isDesktop ? 24 : 20),
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.withOpacity(AppTheme.white, 0.25),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: AppTheme.white,
+                        size: 24,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.withOpacity(AppTheme.white, 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward,
+                        color: AppTheme.white,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    color: AppTheme.withOpacity(AppTheme.white, 0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  style: GoogleFonts.poppins(
+                    color: AppTheme.white,
+                    fontSize: isDesktop ? 30 : 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.poppins(
+                    color: AppTheme.withOpacity(AppTheme.white, 0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    )
+        .animate(delay: Duration(milliseconds: delay))
+        .fadeIn(duration: const Duration(milliseconds: 600))
+        .slideY(begin: 0.1, end: 0)
+        .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1));
+  }
+
+  Widget _buildStatsLoading(BuildContext context) {
+    final isDesktop = context.isDesktop;
+
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: List.generate(4, (index) {
+        return Flexible(
+          child: SizedBox(
+            width: isDesktop ? 220 : double.infinity,
+            child: Enhanced.ShimmerCard(
+              height: isDesktop ? 180 : 160,
+              borderRadius: 20,
+            )
+                .animate(delay: Duration(milliseconds: index * 100))
+                .fadeIn(duration: const Duration(milliseconds: 400))
+                .slideY(begin: 0.1, end: 0),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildStatsError(BuildContext context, Object error) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.red.shade900.withOpacity(0.2)
+            : Theme.of(context).colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Theme.of(context).colorScheme.error,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Failed to load wallet data',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.onErrorContainer,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatsOverview(
-      BuildContext context, WidgetRef ref, dynamic walletState) {
-    final isDesktop = context.isDesktop;
+  Widget _buildSearchAndFilter(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.08),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? AppTheme.withOpacity(AppTheme.black, 0.3)
+                : AppTheme.withOpacity(AppTheme.black, 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.explore,
+                color: isDark ? AppTheme.white : AppTheme.slate800,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Discover Animals',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? AppTheme.white : AppTheme.slate800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Enhanced Search Bar
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.05) : AppTheme.slate50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.08),
+                width: 1.5,
+              ),
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                color: isDark ? AppTheme.white : AppTheme.slate800,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search animals, breeds, or sellers...',
+                hintStyle: GoogleFonts.poppins(
+                  fontSize: 15,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.4)
+                      : Colors.black.withOpacity(0.4),
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.6)
+                      : Colors.black.withOpacity(0.6),
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.clear,
+                          color: isDark
+                              ? Colors.white.withOpacity(0.6)
+                              : Colors.black.withOpacity(0.6),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                          });
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Enhanced Filter Chips
+          Text(
+            'Categories',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark
+                  ? Colors.white.withOpacity(0.7)
+                  : Colors.black.withOpacity(0.6),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _filters.asMap().entries.map((entry) {
+                final index = entry.key;
+                final filter = entry.value;
+                final isSelected = _selectedFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: _buildFilterChip(filter, isSelected, isDark)
+                      .animate(
+                          delay: Duration(milliseconds: 400 + (index * 50)))
+                      .fadeIn(duration: const Duration(milliseconds: 300))
+                      .scale(
+                          begin: const Offset(0.9, 0.9),
+                          end: const Offset(1, 1)),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, bool isDark) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedFilter = label;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    const Color(0xFF8B5CF6),
+                    const Color(0xFFA855F7),
+                  ],
+                )
+              : null,
+          color: isSelected
+              ? null
+              : isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : AppTheme.slate50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : isDark
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.08),
+            width: 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.withOpacity(AppTheme.purple500, 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected
+                ? AppTheme.white
+                : isDark
+                    ? AppTheme.withOpacity(AppTheme.white, 0.7)
+                    : AppTheme.slate500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMarketplaceSection(BuildContext context, WidgetRef ref,
+      AsyncValue<List<Trade>> marketplaceState) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,453 +1065,495 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Portfolio Overview',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Icon(
+                  Icons.store,
+                  color: isDark ? AppTheme.white : AppTheme.slate800,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Marketplace',
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppTheme.white : AppTheme.slate800,
+                    letterSpacing: -0.5,
                   ),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.getSuccessColor(context).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color:
-                      AppTheme.getSuccessColor(context).withValues(alpha: 0.3),
-                  width: 1,
+            TextButton.icon(
+              onPressed: () => context.push('/marketplace'),
+              icon: const Icon(Icons.arrow_forward, size: 18),
+              label: Text(
+                'View All',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: AppTheme.getSuccessColor(context),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'All Systems Operational',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppTheme.getSuccessColor(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ],
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF8B5CF6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ],
         ),
         const SizedBox(height: 20),
-        if (isDesktop)
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: GestureDetector(
-                  onTap: () => context.go('/wallet'),
-                  child: AIStatsCard(
-                    title: 'Total Portfolio Value',
-                    value: walletState.maybeWhen(
-                      data: (wallet) => wallet?.balance?.hbar != null
-                          ? '${wallet!.balance!.hbar} HBAR'
-                          : '0.00 HBAR',
-                      orElse: () => '0.00 HBAR',
-                    ),
-                    subtitle: '≈ \$0.00 USD',
-                    icon: Icons.account_balance_wallet,
-                    color: AppTheme.getPrimaryColor(context),
-                    trend: '+0.00%',
-                    isPositive: true,
-                    isLarge: true,
-                    hasAIGlow: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: () => context.go('/animals'),
-                      child: AIStatsCard(
-                        title: 'My Animals',
-                        value: '0',
-                        subtitle: 'NFTs owned',
-                        icon: Icons.pets,
-                        color: AppTheme.getSuccessColor(context),
-                        trend: '+0',
-                        isPositive: true,
-                        hasAIGlow: false,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () => context.go('/marketplace'),
-                      child: AIStatsCard(
-                        title: 'Active Trades',
-                        value: '0',
-                        subtitle: 'In progress',
-                        icon: Icons.trending_up,
-                        color: AppTheme.getAccentColor(context),
-                        trend: '+0',
-                        isPositive: true,
-                        hasAIGlow: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          )
-        else
-          Column(
-            children: [
-              GestureDetector(
-                onTap: () => context.go('/wallet'),
-                child: AIStatsCard(
-                  title: 'Total Portfolio Value',
-                  value: walletState.maybeWhen(
-                    data: (wallet) => wallet?.balance?.hbar != null
-                        ? '${wallet!.balance!.hbar} HBAR'
-                        : '0.00 HBAR',
-                    orElse: () => '0.00 HBAR',
-                  ),
-                  subtitle: '≈ \$0.00 USD',
-                  icon: Icons.account_balance_wallet,
-                  color: AppTheme.getPrimaryColor(context),
-                  trend: '+0.00%',
-                  isPositive: true,
-                  isLarge: true,
-                  hasAIGlow: true,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+        marketplaceState.when(
+          data: (trades) => _buildMarketplaceGrid(context, trades),
+          loading: () => _buildMarketplaceLoading(),
+          error: (error, stackTrace) => _buildMarketplaceError(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMarketplaceGrid(BuildContext context, List<Trade> trades) {
+    if (trades.isEmpty) {
+      return _buildEmptyMarketplace(context);
+    }
+
+    final isDesktop = context.isDesktop;
+    final crossAxisCount = isDesktop ? 4 : 2;
+    final childAspectRatio = isDesktop ? 0.72 : 0.75;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: childAspectRatio,
+      ),
+      itemCount: trades.length > 8 ? 8 : trades.length,
+      itemBuilder: (context, index) {
+        final trade = trades[index];
+        return _buildAnimalCard(context, trade, index);
+      },
+    );
+  }
+
+  Widget _buildAnimalCard(BuildContext context, Trade trade, int index) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: () {
+        // TODO: Navigate to trade details
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.getThemeAwareColor(context,
+              lightColor: AppTheme.white, darkColor: AppTheme.slate800),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark
+                ? AppTheme.withOpacity(AppTheme.white, 0.1)
+                : AppTheme.withOpacity(AppTheme.black, 0.08),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Enhanced Animal Image with overlay
+            Expanded(
+              flex: 3,
+              child: Stack(
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => context.go('/animals'),
-                      child: AIStatsCard(
-                        title: 'My Animals',
-                        value: '0',
-                        subtitle: 'NFTs owned',
-                        icon: Icons.pets,
-                        color: AppTheme.getSuccessColor(context),
-                        trend: '+0',
-                        isPositive: true,
-                        hasAIGlow: false,
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    child: trade.animal?.imageUrl != null
+                        ? ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                            child: Image.network(
+                              trade.animal!.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildPlaceholderImage(isDark),
+                            ),
+                          )
+                        : _buildPlaceholderImage(isDark),
+                  ),
+                  // Gradient overlay
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => context.go('/marketplace'),
-                      child: AIStatsCard(
-                        title: 'Active Trades',
-                        value: '0',
-                        subtitle: 'In progress',
-                        icon: Icons.trending_up,
-                        color: AppTheme.getAccentColor(context),
-                        trend: '+0',
-                        isPositive: true,
-                        hasAIGlow: true,
+                  // Status badge
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(trade.status).withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                _getStatusColor(trade.status).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        trade.status.toUpperCase(),
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.white,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
-      ],
-    );
-  }
+            ),
 
-  Widget _buildDesktopLayout(BuildContext context, WidgetRef ref) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 2,
-          child: Column(
-            children: [
-              _buildEnhancedQuickActions(context, ref),
-              const SizedBox(height: 32),
-              _buildEnhancedRecentActivity(context, ref),
-            ],
-          ),
-        ),
-        const SizedBox(width: 32),
-        Expanded(
-          child: _buildEnhancedMarketInsights(context, ref),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        _buildEnhancedQuickActions(context, ref),
-        SizedBox(height: context.responsive(mobile: 24.0, desktop: 32.0)),
-        _buildEnhancedRecentActivity(context, ref),
-        SizedBox(height: context.responsive(mobile: 24.0, desktop: 32.0)),
-        _buildEnhancedMarketInsights(context, ref),
-      ],
-    );
-  }
-
-  Widget _buildEnhancedQuickActions(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Quick Actions',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            TextButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.apps, size: 16),
-              label: const Text('View All'),
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount:
-              ResponsiveUtils.getGridColumns(context, maxColumns: 4),
-          crossAxisSpacing: context.responsive(mobile: 12.0, desktop: 16.0),
-          mainAxisSpacing: context.responsive(mobile: 12.0, desktop: 16.0),
-          childAspectRatio:
-              context.responsive(mobile: 1.3, tablet: 1.2, desktop: 1.1),
-          children: [
-            AIActionCard(
-              title: 'Add Animal',
-              subtitle: 'Register new NFT',
-              icon: Icons.add_circle_outline,
-              color: AppTheme.getPrimaryColor(context),
-              onTap: () => context.go('/animals/add'),
-              hasAIGlow: true,
-            ),
-            AIActionCard(
-              title: 'Browse Market',
-              subtitle: 'Explore listings',
-              icon: Icons.store_outlined,
-              color: AppTheme.getSuccessColor(context),
-              onTap: () => context.go('/marketplace'),
-              hasAIGlow: false,
-            ),
-            AIActionCard(
-              title: 'View Wallet',
-              subtitle: 'Manage funds',
-              icon: Icons.account_balance_wallet_outlined,
-              color: AppTheme.getAccentColor(context),
-              onTap: () => context.go('/wallet'),
-              hasAIGlow: false,
-            ),
-            AIActionCard(
-              title: 'AI Analytics',
-              subtitle: 'Smart insights',
-              icon: Icons.auto_awesome,
-              color: Colors.purple,
-              onTap: () => _showAnalytics(context),
-              hasAIGlow: true,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _showAnalytics(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).dividerColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
+            // Enhanced Animal Info
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.auto_awesome,
-                      color: Colors.purple,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
                     Text(
-                      'AI Analytics',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                      trade.animal?.name ?? 'Unknown Animal',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppTheme.white : AppTheme.slate800,
+                        letterSpacing: -0.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.pets,
+                          size: 14,
+                          color: isDark
+                              ? Colors.white.withOpacity(0.5)
+                              : Colors.black.withOpacity(0.5),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${trade.animal?.species ?? 'Unknown'} • ${trade.animal?.breed ?? 'Mixed'}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.6)
+                                  : Colors.black.withOpacity(0.6),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     const Spacer(),
+                    // Price with better styling
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.1),
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF8B5CF6).withOpacity(0.1),
+                            const Color(0xFFA855F7).withOpacity(0.1),
+                          ],
+                        ),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.withOpacity(AppTheme.purple500, 0.3),
+                          width: 1,
+                        ),
                       ),
-                      child: Text(
-                        'Beta',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Colors.purple,
-                              fontWeight: FontWeight.w600,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${trade.price} ${trade.currency}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF8B5CF6),
+                              letterSpacing: -0.3,
                             ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward,
+                            size: 16,
+                            color: const Color(0xFF8B5CF6),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _buildAnalyticsCard(
-                      context,
-                      'Portfolio Performance',
-                      'Your portfolio has grown by 12% this month',
-                      Icons.trending_up,
-                      Colors.green,
-                      '↗️ +12%',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildAnalyticsCard(
-                      context,
-                      'Market Prediction',
-                      'Cat NFTs are expected to rise by 8% next week',
-                      Icons.psychology,
-                      Colors.blue,
-                      '🔮 Prediction',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildAnalyticsCard(
-                      context,
-                      'Optimal Trading Time',
-                      'Best time to trade: Weekends 2-4 PM',
-                      Icons.schedule,
-                      Colors.orange,
-                      '⏰ Timing',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    )
+        .animate(delay: Duration(milliseconds: index * 100))
+        .fadeIn(duration: const Duration(milliseconds: 500))
+        .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1));
+  }
+
+  Widget _buildPlaceholderImage(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  const Color(0xFF1E293B),
+                  const Color(0xFF0F172A),
+                ]
+              : [
+                  const Color(0xFFF1F5F9),
+                  const Color(0xFFE2E8F0),
+                ],
+        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.pets,
+          size: 48,
+          color: isDark
+              ? Colors.white.withOpacity(0.2)
+              : Colors.black.withOpacity(0.2),
         ),
       ),
     );
   }
 
-  Widget _buildAnalyticsCard(
-    BuildContext context,
-    String title,
-    String description,
-    IconData icon,
-    Color color,
-    String tag,
-  ) {
+  Widget _buildEmptyMarketplace(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(48),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.getBorderColor(context),
+          color: isDark
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.08),
+          width: 1.5,
         ),
-        boxShadow: AppTheme.getContextShadow(context),
       ),
-      child: Row(
+      child: Column(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF8B5CF6).withOpacity(0.1),
+                  const Color(0xFFA855F7).withOpacity(0.1),
+                ],
+              ),
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(
+              Icons.store_outlined,
+              size: 64,
+              color: const Color(0xFF8B5CF6),
+            ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        tag,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-              ],
+          const SizedBox(height: 24),
+          Text(
+            'No active trades',
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Be the first to list an animal!',
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+              color: isDark
+                  ? Colors.white.withOpacity(0.6)
+                  : Colors.black.withOpacity(0.6),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => context.push('/animals/add'),
+            icon: const Icon(Icons.add),
+            label: Text(
+              'List Your First Animal',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: const Duration(milliseconds: 600))
+        .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1));
+  }
+
+  Widget _buildMarketplaceLoading() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: context.isDesktop ? 4 : 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: context.isDesktop ? 0.72 : 0.75,
+      ),
+      itemCount: 8,
+      itemBuilder: (context, index) {
+        return Enhanced.ShimmerCard(
+          height: 300,
+          borderRadius: 20,
+        )
+            .animate(delay: Duration(milliseconds: index * 100))
+            .fadeIn(duration: const Duration(milliseconds: 400));
+      },
+    );
+  }
+
+  Widget _buildMarketplaceError(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(48),
+      decoration: BoxDecoration(
+        color:
+            isDark ? Colors.red.shade900.withOpacity(0.2) : Colors.red.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.red.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 64,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Failed to load marketplace',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.red,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Please check your connection and try again',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: isDark
+                  ? Colors.white.withOpacity(0.7)
+                  : Colors.black.withOpacity(0.6),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              ref.read(marketplaceProvider.notifier).refresh();
+            },
+            icon: const Icon(Icons.refresh),
+            label: Text(
+              'Retry',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 14,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -1139,265 +1561,16 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEnhancedRecentActivity(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Recent Activity',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                'View All',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppTheme.getPrimaryColor(context),
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppTheme.getBorderColor(context),
-              width: 1,
-            ),
-            boxShadow: AppTheme.getContextShadow(context),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.getMutedColor(context),
-                      AppTheme.getMutedColor(context).withValues(alpha: 0.5),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.timeline_outlined,
-                  size: 40,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'No recent activity',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Start by adding your first animal or exploring the marketplace to see your activity here.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 24),
-              ResponsiveButtonRow(
-                buttons: [
-                  ResponsiveButtonData(
-                    text: 'Add Animal',
-                    icon: Icons.add,
-                    onPressed: () => context.go('/animals/add'),
-                    hasGlow: true,
-                  ),
-                  ResponsiveButtonData(
-                    text: 'Browse Market',
-                    icon: Icons.store,
-                    onPressed: () => context.go('/marketplace'),
-                    isOutlined: true,
-                    hasGlow: false,
-                  ),
-                ],
-                forceVerticalOnMobile: true,
-                spacing: 12,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEnhancedMarketInsights(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Market Insights',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.getAccentColor(context).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Live',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppTheme.getAccentColor(context),
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppTheme.getBorderColor(context),
-              width: 1,
-            ),
-            boxShadow: AppTheme.getContextShadow(context),
-          ),
-          child: Column(
-            children: [
-              _buildEnhancedInsightItem(
-                context: context,
-                title: 'Active Listings',
-                value: '1,234',
-                change: '+12%',
-                isPositive: true,
-                icon: Icons.store,
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 20),
-              _buildEnhancedInsightItem(
-                context: context,
-                title: 'Average Price',
-                value: '45.2 HBAR',
-                change: '+5.8%',
-                isPositive: true,
-                icon: Icons.trending_up,
-                color: Colors.green,
-              ),
-              const SizedBox(height: 20),
-              _buildEnhancedInsightItem(
-                context: context,
-                title: 'Total Volume',
-                value: '12.5K HBAR',
-                change: '+18.3%',
-                isPositive: true,
-                icon: Icons.bar_chart,
-                color: Colors.orange,
-              ),
-              const SizedBox(height: 20),
-              _buildEnhancedInsightItem(
-                context: context,
-                title: 'Top Category',
-                value: 'Livestock',
-                change: '45% share',
-                isPositive: true,
-                icon: Icons.pets,
-                color: Colors.purple,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEnhancedInsightItem({
-    required BuildContext context,
-    required String title,
-    required String value,
-    required String change,
-    required bool isPositive,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: (isPositive
-                              ? AppTheme.getSuccessColor(context)
-                              : AppTheme.errorColor)
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      change,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: isPositive
-                                ? AppTheme.getSuccessColor(context)
-                                : AppTheme.errorColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'listed':
+        return const Color(0xFF10B981);
+      case 'sold':
+        return const Color(0xFF64748B);
+      case 'pending':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF64748B);
+    }
   }
 }

@@ -140,6 +140,20 @@ Map<String, dynamic> _$WalletResponseToJson(WalletResponse instance) =>
       'createdAt': instance.createdAt.toIso8601String(),
     };
 
+FundAccountRequest _$FundAccountRequestFromJson(Map<String, dynamic> json) =>
+    FundAccountRequest(
+      accountId: json['accountId'] as String?,
+      amount: json['amount'] as String,
+      memo: json['memo'] as String?,
+    );
+
+Map<String, dynamic> _$FundAccountRequestToJson(FundAccountRequest instance) =>
+    <String, dynamic>{
+      'accountId': instance.accountId,
+      'amount': instance.amount,
+      'memo': instance.memo,
+    };
+
 SendTransactionRequest _$SendTransactionRequestFromJson(
         Map<String, dynamic> json) =>
     SendTransactionRequest(

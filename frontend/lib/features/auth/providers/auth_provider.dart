@@ -44,6 +44,7 @@ class AuthNotifier extends _$AuthNotifier {
     required String password,
     required String firstName,
     required String lastName,
+    String? country,
   }) async {
     state = AuthState.loading();
 
@@ -55,6 +56,7 @@ class AuthNotifier extends _$AuthNotifier {
         password: password,
         firstName: firstName,
         lastName: lastName,
+        country: country,
       );
 
       state = AuthState.authenticated(response.user);
@@ -64,12 +66,20 @@ class AuthNotifier extends _$AuthNotifier {
   }
 
   // Login user
-  Future<void> login({required String email, required String password}) async {
+  Future<void> login({
+    required String email,
+    required String password,
+    bool rememberMe = false,
+  }) async {
     state = AuthState.loading();
 
     try {
       final repository = ref.read(authRepositoryProvider);
-      final response = await repository.login(email: email, password: password);
+      final response = await repository.login(
+        email: email,
+        password: password,
+        rememberMe: rememberMe,
+      );
 
       state = AuthState.authenticated(response.user);
     } catch (e) {

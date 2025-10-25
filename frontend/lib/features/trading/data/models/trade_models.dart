@@ -103,6 +103,7 @@ class TradeAnimal {
   final String species;
   final String? breed;
   final int? age;
+  final String gender;
   final String? imageUrl;
   final String? tokenId;
 
@@ -112,6 +113,7 @@ class TradeAnimal {
     required this.species,
     this.breed,
     this.age,
+    required this.gender,
     this.imageUrl,
     this.tokenId,
   });
@@ -119,6 +121,32 @@ class TradeAnimal {
   factory TradeAnimal.fromJson(Map<String, dynamic> json) =>
       _$TradeAnimalFromJson(json);
   Map<String, dynamic> toJson() => _$TradeAnimalToJson(this);
+
+  String get displaySpecies {
+    switch (species) {
+      case 'COW':
+        return 'Cow';
+      case 'GOAT':
+        return 'Goat';
+      case 'SHEEP':
+        return 'Sheep';
+      case 'OTHER':
+        return 'Other';
+      default:
+        return species;
+    }
+  }
+
+  String get displayGender {
+    switch (gender) {
+      case 'MALE':
+        return 'Male';
+      case 'FEMALE':
+        return 'Female';
+      default:
+        return gender;
+    }
+  }
 }
 
 // Trade User Model

@@ -18,8 +18,6 @@ export declare class WalletService {
     getWalletByAccountId(accountId: string): Promise<({
         user: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             email: string;
             phone: string | null;
             password: string;
@@ -28,16 +26,18 @@ export declare class WalletService {
             role: import("@prisma/client").$Enums.UserRole;
             isActive: boolean;
             isVerified: boolean;
+            createdAt: Date;
+            updatedAt: Date;
             lastLoginAt: Date | null;
         };
     } & {
-        publicKey: string;
         id: string;
-        userId: string;
-        hederaAccountId: string;
-        encryptedPrivateKey: string;
         createdAt: Date;
         updatedAt: Date;
+        hederaAccountId: string;
+        encryptedPrivateKey: string;
+        publicKey: string;
+        userId: string;
     }) | null>;
     fundUserAccount(userId: string, amount: string, memo?: string): Promise<TransferResponseDto>;
     fundHederaAccount(accountId: string, amount: string, memo?: string): Promise<TransferResponseDto>;

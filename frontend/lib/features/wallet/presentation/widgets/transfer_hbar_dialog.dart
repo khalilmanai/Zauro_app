@@ -65,13 +65,13 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                       color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.send,
                       color: AppTheme.primaryColor,
                       size: 20,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Send HBAR',
@@ -84,12 +84,12 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // Current Balance
               Container(
@@ -109,7 +109,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                         color: AppTheme.grey600,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Consumer(
                       builder: (context, ref, child) {
                         final balance = ref.watch(walletBalanceProvider);
@@ -144,7 +144,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // Recipient Account ID
               Text(
@@ -155,7 +155,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                   color: AppTheme.grey700,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               CustomTextField(
                 controller: _toAccountController,
                 hint: '0.0.123456',
@@ -164,7 +164,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                 prefixIcon: Icons.account_balance_wallet,
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // Amount
               Text(
@@ -175,7 +175,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                   color: AppTheme.grey700,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               CustomTextField(
                 controller: _amountController,
                 hint: '0.00000000',
@@ -188,7 +188,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                 ],
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // Action Buttons
               Row(
@@ -207,7 +207,7 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: CustomButton(
                       onPressed: _isLoading ? null : _transferHbar,
@@ -275,8 +275,8 @@ class _TransferHbarDialogState extends ConsumerState<TransferHbarDialog> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('HBAR transfer initiated successfully!'),
+          SnackBar(
+            content: const Text('HBAR transfer initiated successfully!'),
             backgroundColor: AppTheme.successColor,
           ),
         );

@@ -54,7 +54,7 @@ class ProfileScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: AppTheme.lightShadow,
+        boxShadow: AppTheme.getLightShadow(),
       ),
       child: Column(
         children: [
@@ -123,7 +123,7 @@ class ProfileScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.lightShadow,
+        boxShadow: AppTheme.getLightShadow(),
       ),
       child: Column(
         children: [
@@ -152,7 +152,7 @@ class ProfileScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.lightShadow,
+        boxShadow: AppTheme.getLightShadow(),
       ),
       child: Column(
         children: [

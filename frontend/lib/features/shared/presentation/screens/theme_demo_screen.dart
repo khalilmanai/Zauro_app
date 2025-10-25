@@ -61,21 +61,21 @@ class ThemeDemoScreen extends ConsumerWidget {
                   context,
                   'Accent',
                   'Warm Earthy',
-                  AppTheme.getAccentColor(context),
+                  AppTheme.accentColor,
                   Theme.of(context).colorScheme.onTertiary,
                 ),
                 _buildColorCard(
                   context,
                   'Success',
                   'Nature Green',
-                  AppTheme.getSuccessColor(context),
+                  AppTheme.success,
                   Colors.white,
                 ),
                 _buildColorCard(
                   context,
                   'Error',
                   'Terracotta Red',
-                  AppTheme.getErrorColor(context),
+                  AppTheme.error,
                   Colors.white,
                 ),
               ],
@@ -211,10 +211,10 @@ class ThemeDemoScreen extends ConsumerWidget {
                             ),
                             Chip(
                               label: const Text('Available'),
-                              backgroundColor: AppTheme.getSuccessColor(context)
+                              backgroundColor: AppTheme.success
                                   .withValues(alpha: 0.1),
                               labelStyle: TextStyle(
-                                color: AppTheme.getSuccessColor(context),
+                                color: AppTheme.success,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),

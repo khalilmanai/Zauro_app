@@ -29,7 +29,7 @@ class TradeDetailScreen extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.grey700),
+          icon: Icon(Icons.arrow_back_ios, color: AppTheme.grey700),
         ),
       ),
       body: LoadingOverlay(
@@ -63,7 +63,7 @@ class TradeDetailScreen extends ConsumerWidget {
             width: double.infinity,
             height: 250,
             color: AppTheme.grey200,
-            child: const Center(
+            child: Center(
               child: Icon(Icons.pets, size: 80, color: AppTheme.grey400),
             ),
           ),
@@ -80,13 +80,13 @@ class TradeDetailScreen extends ConsumerWidget {
                     color: AppTheme.grey900,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Row(
                   children: [
                     _buildInfoChip('Species', 'Dog'),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     _buildInfoChip('Breed', 'Golden Retriever'),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     _buildInfoChip('Age', '3 years'),
                   ],
                 ),
@@ -123,7 +123,7 @@ class TradeDetailScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.lightShadow,
+        boxShadow: AppTheme.getLightShadow(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,13 +136,13 @@ class TradeDetailScreen extends ConsumerWidget {
               color: AppTheme.grey900,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _buildTradeInfo('Price', '250.00 HBAR'),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _buildTradeInfo('Status', 'Listed'),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _buildTradeInfo('Listed Date', '2 days ago'),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _buildTradeInfo('Trade ID', tradeId),
         ],
       ),
@@ -176,20 +176,20 @@ class TradeDetailScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.lightShadow,
+        boxShadow: AppTheme.getLightShadow(),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 24,
             backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-            child: const Icon(
+            child: Icon(
               Icons.person,
               color: AppTheme.primaryColor,
               size: 24,
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,12 +245,12 @@ class TradeDetailScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline,
                   color: AppTheme.accentColor,
                   size: 20,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'This trade will be executed using atomic swaps for maximum security',
@@ -263,7 +263,7 @@ class TradeDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: CustomButton(
@@ -271,7 +271,7 @@ class TradeDetailScreen extends ConsumerWidget {
               onPressed: () => _showBuyConfirmation(),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -283,7 +283,7 @@ class TradeDetailScreen extends ConsumerWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: CustomButton(
                   text: 'Share Trade',

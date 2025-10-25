@@ -7,6 +7,7 @@ class AnimalResponseDto {
     species;
     breed;
     age;
+    gender;
     description;
     tokenId;
     tokenSerialNumber;

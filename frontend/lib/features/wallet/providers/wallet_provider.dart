@@ -3,19 +3,24 @@ import '../data/models/wallet_models.dart';
 import '../data/repositories/wallet_repository.dart';
 
 // Wallet State Provider
-final walletProvider = StateNotifierProvider<WalletNotifier, AsyncValue<WalletResponse?>>((ref) {
+final walletProvider =
+    StateNotifierProvider<WalletNotifier, AsyncValue<WalletResponse?>>((ref) {
   final repository = ref.watch(walletRepositoryProvider);
   return WalletNotifier(repository);
 });
 
 // Wallet Balance Provider
-final walletBalanceProvider = StateNotifierProvider<WalletBalanceNotifier, AsyncValue<WalletBalance?>>((ref) {
+final walletBalanceProvider =
+    StateNotifierProvider<WalletBalanceNotifier, AsyncValue<WalletBalance?>>(
+        (ref) {
   final repository = ref.watch(walletRepositoryProvider);
   return WalletBalanceNotifier(repository);
 });
 
 // Transfer State Provider
-final transferProvider = StateNotifierProvider<TransferNotifier, AsyncValue<TransferResponse?>>((ref) {
+final transferProvider =
+    StateNotifierProvider<TransferNotifier, AsyncValue<TransferResponse?>>(
+        (ref) {
   final repository = ref.watch(walletRepositoryProvider);
   return TransferNotifier(repository);
 });
@@ -116,29 +121,34 @@ class TransferNotifier extends StateNotifier<AsyncValue<TransferResponse?>> {
 // Convenience providers for easier access
 final hasWalletProvider = Provider<bool>((ref) {
   final walletState = ref.watch(walletProvider);
-  return walletState.maybeWhen(
+  return walletState.when(
     data: (wallet) => wallet != null,
-    orElse: () => false,
+    loading: () => false,
+    error: (error, stackTrace) => false,
   );
 });
 
 final walletBalanceStringProvider = Provider<String>((ref) {
   final balanceState = ref.watch(walletBalanceProvider);
-  return balanceState.maybeWhen(
+  return balanceState.when(
     data: (balance) => balance?.formattedHbarBalance ?? '0.00 HBAR',
-    orElse: () => 'Loading...',
+    loading: () => 'Loading...',
+    error: (error, stackTrace) => '0.00 HBAR',
   );
 });
 
 final canTransferProvider = Provider<bool>((ref) {
   final walletState = ref.watch(walletProvider);
   final balanceState = ref.watch(walletBalanceProvider);
-  
-  return walletState.maybeWhen(
-    data: (wallet) => wallet != null,
-    orElse: () => false,
-  ) && balanceState.maybeWhen(
-    data: (balance) => balance != null && balance.hbarBalance > 0,
-    orElse: () => false,
-  );
+
+  return walletState.when(
+        data: (wallet) => wallet != null,
+        loading: () => false,
+        error: (error, stackTrace) => false,
+      ) &&
+      balanceState.when(
+        data: (balance) => balance != null && balance.hbarBalance > 0,
+        loading: () => false,
+        error: (error, stackTrace) => false,
+      );
 });

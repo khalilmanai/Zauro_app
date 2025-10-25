@@ -39,13 +39,13 @@ class ReceiveQrDialog extends StatelessWidget {
                     color: AppTheme.successColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.qr_code,
                     color: AppTheme.successColor,
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Receive HBAR',
@@ -58,12 +58,12 @@ class ReceiveQrDialog extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close),
                 ),
               ],
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
 
             // QR Code
             Container(
@@ -92,7 +92,7 @@ class ReceiveQrDialog extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
 
             // Account ID
             Text(
@@ -102,7 +102,7 @@ class ReceiveQrDialog extends StatelessWidget {
                 color: AppTheme.grey600,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -128,7 +128,7 @@ class ReceiveQrDialog extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () => _copyToClipboard(context),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.copy,
                       size: 20,
                       color: AppTheme.primaryColor,
@@ -139,7 +139,7 @@ class ReceiveQrDialog extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             // Instructions
             Container(
@@ -159,7 +159,7 @@ class ReceiveQrDialog extends StatelessWidget {
                         size: 16,
                         color: AppTheme.primaryColor,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         'How to receive HBAR',
                         style: GoogleFonts.poppins(
@@ -170,7 +170,7 @@ class ReceiveQrDialog extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     '• Share this QR code or account ID with the sender\n'
                     '• Only accept HBAR transfers to this account\n'
@@ -185,7 +185,7 @@ class ReceiveQrDialog extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
 
             // Action Buttons
             Row(
@@ -203,7 +203,7 @@ class ReceiveQrDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: CustomButton(
                     onPressed: () => _copyToClipboard(context),
@@ -233,3 +233,4 @@ class ReceiveQrDialog extends StatelessWidget {
     );
   }
 }
+

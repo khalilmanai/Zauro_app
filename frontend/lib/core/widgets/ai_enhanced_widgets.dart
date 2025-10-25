@@ -225,8 +225,8 @@ class _AIStatsCardState extends State<AIStatsCard>
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: (widget.isPositive
-                                ? AppTheme.getSuccessColor(context)
-                                : AppTheme.errorColor)
+                                ? AppTheme.success
+                                : AppTheme.error)
                             .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -239,8 +239,8 @@ class _AIStatsCardState extends State<AIStatsCard>
                                 : Icons.trending_down,
                             size: 14,
                             color: widget.isPositive
-                                ? AppTheme.getSuccessColor(context)
-                                : AppTheme.errorColor,
+                                ? AppTheme.success
+                                : AppTheme.error,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -250,8 +250,8 @@ class _AIStatsCardState extends State<AIStatsCard>
                                 .labelSmall
                                 ?.copyWith(
                                   color: widget.isPositive
-                                      ? AppTheme.getSuccessColor(context)
-                                      : AppTheme.errorColor,
+                                      ? AppTheme.success
+                                      : AppTheme.error,
                                   fontWeight: FontWeight.w600,
                                 ),
                           ),
@@ -463,7 +463,7 @@ class _AIEnhancedHeaderState extends State<AIEnhancedHeader>
           colors: [
             AppTheme.getPrimaryColor(context),
             AppTheme.getPrimaryColor(context).withValues(alpha: 0.8),
-            AppTheme.getAccentColor(context).withValues(alpha: 0.6),
+            AppTheme.accentColor.withValues(alpha: 0.6),
           ],
         ),
       ),
