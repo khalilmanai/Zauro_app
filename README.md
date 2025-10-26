@@ -26,6 +26,7 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 | **Authentication** | JWT with refresh tokens | Secure user authentication |
 | **Email Service** | MailerSend | Transactional emails and notifications |
 | **SMS Service** | Twilio | SMS notifications and OTP delivery |
+| **ML/AI Service** | Python Flask + Transformers | Animal analysis, price prediction, NFT valuation |
 | **Documentation** | Swagger/OpenAPI | Auto-generated API documentation |
 | **Security** | bcrypt, AES-256, Rate limiting | Data protection and security |
 
@@ -37,23 +38,31 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                               │                        │
                               ▼                        │
-                       ┌─────────────────┐             │
-                       │   PostgreSQL    │             │
-                       │   + Prisma ORM  │             │
-                       └─────────────────┘             │
-                              │                        │
-                              ▼                        │
-                       ┌─────────────────┐             │
-                       │   Supabase      │             │
-                       │   Storage       │             │
-                       └─────────────────┘             │
-                              │                        │
-                              ▼                        │
-                       ┌─────────────────┐             │
-                       │   External      │◄────────────┘
-                       │   Services      │
-                       │   (SMTP/Twilio) │
-                       └─────────────────┘
+         ┌────────────────────────────────────────────┴───────┐
+         │                                                     │
+         ▼                                                     │
+  ┌──────────────────┐                                 │
+  │   PostgreSQL     │                                 │
+  │   + Prisma ORM   │                                 │
+  └──────────────────┘                                 │
+         │                                                │
+         ▼                                                │
+  ┌──────────────────┐                                  │
+  │   Supabase       │                                  │
+  │   Storage        │                                  │
+  └──────────────────┘                                  │
+         │                                                │
+         ▼                                                │
+  ┌──────────────────────────────────────────────────────┘
+  │   External Services
+  └────────┬─────────────┬─────────────┬──────────────┘
+            │             │             │
+            ▼             ▼             ▼
+  ┌──────────────┐ ┌──────────┐ ┌──────────────────┐
+  │  ML Service  │ │  Twilio  │ │   MailerSend      │
+  │ (Python API) │ │   SMS    │ │   Email           │
+  │ Port: 5000   │ └──────────┘ └──────────────────┘
+  └──────────────┘
 ```
 
 ---
@@ -609,10 +618,37 @@ The Zauro platform is fully Dockerized and ready for deployment on various free 
 - **Smart Contract Ready**: Architecture prepared for smart contract integration
 
 ### AI Integration
-- **Market Value Prediction**: AI-powered animal valuation
-- **Breed Recognition**: Automated breed identification from images
+- **Market Value Prediction**: AI-powered animal valuation using T5 transformer models
+- **Cattle Analysis**: Automated detection of age, sex, breed, and health from images
+- **NFT Valuation**: Comprehensive NFT valuation with rarity scoring
+- **Disease Detection**: Real-time disease detection using Roboflow APIs
+- **Price Estimation**: Market price prediction based on multiple factors
 - **Health Assessment**: AI analysis of veterinary records
 - **Market Trend Analysis**: Predictive analytics for trading patterns
+
+#### Animal Detection Service (`animal detection/`)
+**Purpose**: Machine learning service for comprehensive cattle analysis and NFT valuation
+
+**Key Features**:
+- **Multi-Model Analysis**: T5 transformer for price prediction, Roboflow for image analysis
+- **Comprehensive Detection**: Age, sex, breed, and disease detection from images
+- **NFT Valuation**: Rarity scoring and comprehensive NFT metadata generation
+- **Market Price Prediction**: AI-powered market value estimation
+- **REST API**: Flask-based API with health checks and monitoring
+
+**Endpoints**:
+- `POST /analyze` - Complete cattle analysis with NFT valuation
+- `POST /predict` - Market price prediction
+- `POST /estimate-nft-value` - Detailed NFT valuation
+- `GET /health` - Health check endpoint
+
+**Technology**:
+- Python Flask
+- Hugging Face Transformers (T5 model)
+- PyTorch for ML inference
+- Roboflow API for computer vision
+
+See `animal detection/DOCKER_SETUP.md` for detailed setup instructions.
 
 ### User Experience
 - **Comprehensive File Management**: Integrated image and document handling
@@ -856,19 +892,79 @@ MAILERSEND_FROM="noreply@yourdomain.com"
 
 ## Docker
 
-- Build image:
-  ```bash
-  docker build -t zauro-backend .
-  ```
-- Run with Postgres via compose:
+### Quick Start
+
+- **Start all services** (PostgreSQL + Backend + PgAdmin + Animal Detection):
   ```bash
   docker compose up --build
   ```
-- Environment:
-  - Copy `env.example` to `.env` and set `DATABASE_URL`, JWT secrets, etc.
-  - Compose overrides `DATABASE_URL` to point to the `db` container by default.
-- Optional seeding:
-  - Set `RUN_SEED=1` in `.env` to run `npm run db:seed` on container start.
+
+- **Start specific services**:
+  ```bash
+  # Backend + Database only
+  docker compose up db backend pgadmin
+  
+  # Animal Detection service only
+  docker compose up animal-detection
+  
+  # All services
+  docker compose up -d  # Run in background
+  ```
+
+### Services
+
+1. **PostgreSQL** (`db`) - Port 5432
+2. **Backend API** (`backend`) - Port 3000
+3. **PgAdmin** (`pgadmin`) - Port 5050
+4. **Animal Detection ML** (`animal-detection`) - Port 5000
+
+### Configuration
+
+- **Environment Setup**:
+  - Copy `env.example` to `.env`
+  - Set `DATABASE_URL`, JWT secrets, etc.
+  - Docker Compose overrides `DATABASE_URL` to point to the `db` container
+
+- **Optional Seeding**:
+  - Set `RUN_SEED=1` in `.env` to run `npm run db:seed` on container start
+
+- **Model Download** (first run):
+  - Animal Detection service downloads T5 models on first start (~5-10 minutes)
+  - Models are cached in `ml_models` volume for faster subsequent starts
+
+### Building Images
+
+```bash
+# Build backend
+docker build -t zauro-backend .
+
+# Build animal detection service
+cd "animal detection"
+docker build -t zauro-animal-detection .
+```
+
+### Useful Commands
+
+```bash
+# View logs
+docker compose logs -f animal-detection
+docker compose logs -f backend
+
+# Check service health
+curl http://localhost:5000/health  # Animal Detection
+curl http://localhost:3000/api/v1  # Backend
+
+# Access PgAdmin
+# URL: http://localhost:5050
+# Email: admin@example.com
+# Password: admin123
+
+# Stop all services
+docker compose down
+
+# Clean volumes (removes DB data and ML models)
+docker compose down -v
+```
 
 ## Collections: Admin vs Users
 

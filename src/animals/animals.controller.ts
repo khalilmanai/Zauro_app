@@ -11,6 +11,7 @@ import {
   Query,
   UseInterceptors,
   UploadedFile,
+  Put,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -31,8 +32,8 @@ export class AnimalsController {
   @ApiBearerAuth('JWT-auth')
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Create a new animal and mint NFT' })
-  @ApiResponse({ status: 201, description: 'Animal created and NFT minted successfully', type: AnimalResponseDto })
+  @ApiOperation({ summary: 'Create a new animal (pending expert review)' })
+  @ApiResponse({ status: 201, description: 'Animal created and awaiting expert review', type: AnimalResponseDto })
   async create(
     @Body() createAnimalDto: CreateAnimalDto,
     @Request() req: any,
@@ -58,6 +59,51 @@ export class AnimalsController {
       },
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Get('pending-review')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get animals pending expert review (Admin/Manager only)' })
+  @ApiResponse({ status: 200, description: 'Pending review animals retrieved successfully' })
+  async getPendingReview(@Query() paginationDto: PaginationDto) {
+    const result = await this.animalsService.getPendingReviewAnimals(paginationDto);
+    return {
+      success: true,
+      message: 'Pending review animals retrieved successfully',
+      data: result.animals,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    };
+  }
+
+  @Put(':id/review')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Review an animal (approve/reject) - Admin/Manager only' })
+  @ApiResponse({ status: 200, description: 'Animal reviewed successfully', type: AnimalResponseDto })
+  async reviewAnimal(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() reviewDto: { approved: boolean; comment?: string },
+  ): Promise<AnimalResponseDto> {
+    return this.animalsService.reviewAnimal(id, req.user.id, reviewDto.approved, reviewDto.comment);
+  }
+
+  @Post(':id/mint')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Mint NFT after expert approval' })
+  @ApiResponse({ status: 201, description: 'NFT minted successfully', type: AnimalResponseDto })
+  async mintAnimal(
+    @Param('id') id: string,
+    @Request() req: any,
+  ): Promise<AnimalResponseDto> {
+    return this.animalsService.mintAnimal(id, req.user.id);
   }
 
   @Get(':id')

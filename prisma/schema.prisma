@@ -41,6 +41,15 @@ enum AnimalGender {
   FEMALE
 }
 
+// Animal status enum
+enum AnimalStatus {
+  PENDING_EXPERT_REVIEW
+  EXPERT_APPROVED
+  EXPERT_REJECTED
+  LISTED
+  MINTED
+}
+
 // OTP type enum
 enum OtpType {
   PASSWORD_RESET
@@ -136,6 +145,12 @@ model Animal {
   // Ownership
   ownerId         String
   isListed        Boolean       @default(false)
+  
+  // Expert review status
+  status          AnimalStatus  @default(PENDING_EXPERT_REVIEW)
+  expertReviewedBy String?
+  expertReviewComment String?
+  expertReviewDate DateTime?
   
   // Timestamps
   createdAt DateTime @default(now())

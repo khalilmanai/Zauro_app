@@ -32,7 +32,8 @@ COPY --from=builder /app/dist ./dist
 
 # Copy entrypoint for Prisma migrations
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh && \
+    sed -i 's/\r$//' ./docker-entrypoint.sh
 
 # Expose Nest default port
 ENV PORT=3000
@@ -42,7 +43,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD node -e "require('http').get(`http://localhost:${PORT}/api/v1`,()=>process.exit(0)).on('error',()=>process.exit(1))"
 
 # Default command expects env vars (e.g., DATABASE_URL, JWT_SECRET, etc.)
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]
 
 

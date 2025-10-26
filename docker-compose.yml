@@ -53,6 +53,28 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  animal-detection:
+    build:
+      context: ./animal detection
+      dockerfile: Dockerfile
+    container_name: zauro_animal_detection
+    ports:
+      - "5000:5000"
+    volumes:
+      - "./animal detection:/app"
+      - ml_models:/root/.cache/huggingface
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FLASK_APP=api.py
+      - FLASK_ENV=production
+    healthcheck:
+      test: curl -f http://localhost:5000/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
 volumes:
   db_data:
   pgadmin_data:
+  ml_models:

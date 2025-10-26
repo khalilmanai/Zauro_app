@@ -1,4 +1,4 @@
-import { AnimalSpecies, AnimalGender } from '@prisma/client';
+import { AnimalSpecies, AnimalGender, AnimalStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class AnimalResponseDto {
@@ -16,6 +16,10 @@ export class AnimalResponseDto {
   aiPredictionValue?: Decimal | null;
   ownerId: string;
   isListed: boolean;
+  status: AnimalStatus;
+  expertReviewedBy?: string | null;
+  expertReviewComment?: string | null;
+  expertReviewDate?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   owner: {
