@@ -35,7 +35,7 @@ class _NeonGlowWidgetState extends State<NeonGlowWidget>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: widget.animationDuration,
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     _glowAnimation = Tween<double>(
@@ -132,7 +132,7 @@ class _NeonButtonState extends State<NeonButton>
     );
     _pressAnimation = Tween<double>(
       begin: 1.0,
-      end: 0.95,
+      end: 0.98,
     ).animate(CurvedAnimation(
       parent: _pressController,
       curve: Curves.easeInOut,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
 import '../utils/storage_service.dart';
+import '../../features/animals/data/models/animal_models.dart';
 
 // File Upload Service Provider
 final fileUploadServiceProvider = Provider<FileUploadService>((ref) {
@@ -26,7 +27,7 @@ class FileUploadService {
   }
 
   /// Upload animal image
-  Future<String> uploadAnimalImage({
+  Future<Animal> uploadAnimalImage({
     required String animalId,
     required File imageFile,
   }) async {
@@ -38,17 +39,19 @@ class FileUploadService {
         ),
       });
 
-      await _uploadFile('/animals/$animalId/upload-image', formData);
-
-      // Return a placeholder URL - actual URL would come from server response
-      return 'https://supabase-url/animals/$animalId/image.jpg';
+      final response =
+          await _uploadFile('/animals/$animalId/upload-image', formData);
+      
+      // Parse the response to get the updated animal
+      final data = response['data'] ?? response;
+      return Animal.fromJson(data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to upload animal image: $e');
     }
   }
 
   /// Upload vet record
-  Future<String> uploadVetRecord({
+  Future<Animal> uploadVetRecord({
     required String animalId,
     required File vetRecordFile,
   }) async {
@@ -60,25 +63,64 @@ class FileUploadService {
         ),
       });
 
-      await _uploadFile('/animals/$animalId/upload-vet-record', formData);
-
-      // Return a placeholder URL - actual URL would come from server response
-      return 'https://supabase-url/animals/$animalId/vet_record.pdf';
+      final response =
+          await _uploadFile('/animals/$animalId/upload-vet-record', formData);
+      
+      // Parse the response to get the updated animal
+      final data = response['data'] ?? response;
+      return Animal.fromJson(data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to upload vet record: $e');
     }
   }
 
+  /// Create animal with image
+  Future<Animal> createAnimalWithImage({
+    required String name,
+    required String species,
+    String? breed,
+    int? age,
+    required String gender,
+    String? description,
+    double? aiPredictionValue,
+    required File imageFile,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'name': name,
+        'species': species,
+        if (breed != null) 'breed': breed,
+        if (age != null) 'age': age,
+        'gender': gender,
+        if (description != null) 'description': description,
+        if (aiPredictionValue != null) 'aiPredictionValue': aiPredictionValue,
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split('/').last,
+        ),
+      });
+
+      final response = await _uploadFile('/animals', formData);
+      
+      // Parse the response to get the created animal
+      final data = response['data'] ?? response;
+      return Animal.fromJson(data as Map<String, dynamic>);
+    } catch (e) {
+      throw Exception('Failed to create animal with image: $e');
+    }
+  }
+
   /// Generic file upload method
-  Future<void> _uploadFile(String endpoint, FormData formData) async {
+  Future<Map<String, dynamic>> _uploadFile(
+      String endpoint, FormData formData) async {
     try {
       final response = await _dio.post(
         endpoint,
         data: formData,
       );
 
-      if (response.statusCode == 200) {
-        return;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return response.data as Map<String, dynamic>;
       } else {
         throw Exception('Upload failed with status: ${response.statusCode}');
       }

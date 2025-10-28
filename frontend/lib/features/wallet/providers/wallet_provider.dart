@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/wallet_models.dart';
 import '../data/repositories/wallet_repository.dart';
+import '../../../../core/network/api_client.dart';
 
 // Wallet State Provider
 final walletProvider =
@@ -72,9 +73,16 @@ class WalletBalanceNotifier extends StateNotifier<AsyncValue<WalletBalance?>> {
   Future<void> getBalance() async {
     state = const AsyncValue.loading();
     try {
+      print('📊 Fetching wallet balance...');
       final balance = await _repository.getMyWalletBalance();
+      print('📊 Balance received: HBAR=${balance.hbar}, ZAU=${balance.zau}');
+      print(
+          '📊 Parsed balance: HBAR=${balance.displayHbar}, ZAU=${balance.displayZau}');
       state = AsyncValue.data(balance);
+      print('📊 Balance state updated successfully');
     } catch (error, stackTrace) {
+      print('❌ Balance fetch error: $error');
+      print('❌ Stack trace: $stackTrace');
       state = AsyncValue.error(error, stackTrace);
     }
   }
@@ -113,6 +121,46 @@ class TransferNotifier extends StateNotifier<AsyncValue<TransferResponse?>> {
   }
 
   /// Clear transfer state
+  void clear() {
+    state = const AsyncValue.data(null);
+  }
+}
+
+// DID Provider
+final didProvider =
+    StateNotifierProvider<DIDNotifier, AsyncValue<String?>>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return DIDNotifier(apiClient);
+});
+
+class DIDNotifier extends StateNotifier<AsyncValue<String?>> {
+  final ApiClient _apiClient;
+
+  DIDNotifier(this._apiClient) : super(const AsyncValue.data(null));
+
+  /// Get the current user's DID
+  Future<void> getMyDid() async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _apiClient.getMyDid();
+      if (response.success && response.data != null) {
+        // Extract DID from response data
+        final did = response.data?.did;
+        state = AsyncValue.data(did);
+      } else {
+        state = AsyncValue.data(null);
+      }
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  /// Refresh DID data
+  Future<void> refresh() async {
+    await getMyDid();
+  }
+
+  /// Clear DID state
   void clear() {
     state = const AsyncValue.data(null);
   }

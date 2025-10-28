@@ -82,6 +82,7 @@ model User {
   password  String
   firstName String
   lastName  String
+  country   String?
   role      UserRole @default(EMPLOYEE_TRADER)
   isActive  Boolean  @default(true)
   isVerified Boolean @default(false)

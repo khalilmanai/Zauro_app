@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../data/models/auth_models.dart';
 import '../data/repositories/auth_repository.dart';
+import '../../../core/utils/storage_service.dart';
 
 part 'auth_provider.g.dart';
 
@@ -118,6 +119,26 @@ class AuthNotifier extends _$AuthNotifier {
       }
     } catch (e) {
       // Don't change state on refresh error
+    }
+  }
+
+  // Update local user in-memory and persist minimal data to StorageService
+  Future<void> updateLocalUser(User user) async {
+    try {
+      state = AuthState.authenticated(user);
+
+      // Persist avatar url separately for best-effort persistence
+      try {
+        if (user.avatarUrl != null) {
+          await StorageService.setString('user_avatar_url', user.avatarUrl!);
+        } else {
+          await StorageService.remove('user_avatar_url');
+        }
+      } catch (_) {
+        // ignore storage persistence errors
+      }
+    } catch (_) {
+      // ignore
     }
   }
 }

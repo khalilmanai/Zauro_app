@@ -51,14 +51,21 @@ class WalletRepository {
   /// Get the authenticated user's wallet balance
   Future<WalletBalance> getMyWalletBalance() async {
     try {
-      final response = await _apiClient.getMyWalletBalance();
+      // The balance endpoint returns data directly as raw JSON, not wrapped in ApiResponse
+      final rawData = await _apiClient.getMyWalletBalanceRaw();
 
-      if (response.success && response.data != null) {
-        return response.data!;
-      } else {
-        throw ServerFailure(message: response.message);
-      }
+      print('🔍 Raw balance data: $rawData');
+
+      // Parse the raw JSON directly into WalletBalance
+      final balance = WalletBalance.fromJson(rawData);
+
+      print('🔍 Balance received: HBAR=${balance.hbar}, ZAU=${balance.zau}');
+      print(
+          '🔍 Parsed balance: HBAR=${balance.displayHbar}, ZAU=${balance.displayZau}');
+
+      return balance;
     } catch (e) {
+      print('❌ Repository exception: $e (${e.runtimeType})');
       if (e is ServerFailure) rethrow;
       throw ServerFailure(message: 'Failed to get wallet balance: $e');
     }
@@ -118,13 +125,10 @@ class WalletRepository {
   /// Get wallet balance by ID (for admin/authorized users)
   Future<WalletBalance> getWalletBalance(String id) async {
     try {
-      final response = await _apiClient.getWalletBalance(id);
-
-      if (response.success && response.data != null) {
-        return response.data!;
-      } else {
-        throw ServerFailure(message: response.message);
-      }
+      // The balance endpoint returns data directly as raw JSON
+      final rawData = await _apiClient.getWalletBalanceRaw(id);
+      final balance = WalletBalance.fromJson(rawData);
+      return balance;
     } catch (e) {
       if (e is ServerFailure) rethrow;
       throw ServerFailure(message: 'Failed to get wallet balance: $e');

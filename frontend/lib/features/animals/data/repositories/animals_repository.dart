@@ -41,10 +41,12 @@ class AnimalsRepository {
       final formData = FormData.fromMap({
         'name': request.name,
         'species': request.species,
-        'breed': request.breed,
-        'age': request.age,
-        'description': request.description,
-        'aiPredictionValue': request.aiPredictionValue,
+        'gender': request.gender,
+        if (request.breed != null) 'breed': request.breed,
+        if (request.age != null) 'age': request.age,
+        if (request.description != null) 'description': request.description,
+        if (request.aiPredictionValue != null)
+          'aiPredictionValue': request.aiPredictionValue,
         if (imageFile != null)
           'image': await MultipartFile.fromFile(
             imageFile.path,
@@ -96,6 +98,66 @@ class AnimalsRepository {
     } catch (e) {
       if (e is ServerFailure) rethrow;
       throw ServerFailure(message: 'Failed to get animals: $e');
+    }
+  }
+
+  /// Get animals pending expert review (Admin/Manager only)
+  Future<PaginatedResponse<Animal>> getPendingReviewAnimals({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await _apiClient.getPendingReviewAnimals(page, limit);
+
+      if (response.success && response.data != null) {
+        return response.data!;
+      } else {
+        throw ServerFailure(message: response.message);
+      }
+    } catch (e) {
+      if (e is ServerFailure) rethrow;
+      throw ServerFailure(message: 'Failed to get pending review animals: $e');
+    }
+  }
+
+  /// Review an animal (approve/reject) - Admin/Manager only
+  Future<Animal> reviewAnimal({
+    required String id,
+    required bool approved,
+    String? comment,
+  }) async {
+    try {
+      final request = ReviewAnimalRequest(
+        approved: approved,
+        comment: comment,
+      );
+
+      final response = await _apiClient.reviewAnimal(id, request);
+
+      if (response.success && response.data != null) {
+        return response.data!;
+      } else {
+        throw ServerFailure(message: response.message);
+      }
+    } catch (e) {
+      if (e is ServerFailure) rethrow;
+      throw ServerFailure(message: 'Failed to review animal: $e');
+    }
+  }
+
+  /// Mint NFT for approved animal
+  Future<Animal> mintAnimal(String id) async {
+    try {
+      final response = await _apiClient.mintAnimal(id);
+
+      if (response.success && response.data != null) {
+        return response.data!;
+      } else {
+        throw ServerFailure(message: response.message);
+      }
+    } catch (e) {
+      if (e is ServerFailure) rethrow;
+      throw ServerFailure(message: 'Failed to mint animal NFT: $e');
     }
   }
 

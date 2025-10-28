@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl_phone_number_input/intl_phone_number_input.dart';
+import 'package:country_picker/country_picker.dart';
+import '../../../../core/services/location_service.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../shared/presentation/widgets/custom_button.dart';
@@ -117,7 +119,7 @@ class _RegistrationCarouselScreenState
     {'code': 'DE', 'dial': '+49', 'name': 'Germany', 'flag': '🇩🇪'},
     {'code': 'FR', 'dial': '+33', 'name': 'France', 'flag': '🇫🇷'},
   ];
-  String? _phoneNumberE164;
+  String _phoneNumberE164 = '';
   PhoneNumber _initialPhone = PhoneNumber(isoCode: 'US');
   String? _selectedCountryIso;
 
@@ -460,17 +462,72 @@ class _RegistrationCarouselScreenState
               ],
             ),
             const SizedBox(height: 16),
+            // Country selection
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.grey300),
+              ),
+              child: ListTile(
+                onTap: () {
+                  showCountryPicker(
+                    context: context,
+                    showPhoneCode: true,
+                    searchAutofocus: true,
+                    onSelect: (Country country) {
+                      setState(() {
+                        _selectedCountryIso = country.countryCode;
+                        _initialPhone = PhoneNumber(
+                          isoCode: country.countryCode,
+                          phoneNumber: _phoneController.text,
+                        );
+                      });
+                      ref
+                          .read(registrationStateProvider.notifier)
+                          .updateCountry(country.countryCode);
+                    },
+                  );
+                },
+                title: Text(
+                  'Select Country',
+                  style: TextStyle(
+                    color: AppTheme.grey600,
+                    fontSize: 16,
+                  ),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final countryCode = _selectedCountryIso ??
+                            ref.watch(currentCountryProvider).value;
+                        return Text(
+                          countryCode ?? 'Select',
+                          style: TextStyle(
+                            color: AppTheme.grey900,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        );
+                      },
+                    ),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 16, color: AppTheme.grey600),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             InternationalPhoneNumberInput(
               onInputChanged: (PhoneNumber number) {
-                _phoneNumberE164 = number.phoneNumber;
+                _phoneNumberE164 = number.phoneNumber ?? '';
                 _selectedCountryIso = number.isoCode;
                 // update registration state with formatted value and country ISO
                 ref
                     .read(registrationStateProvider.notifier)
                     .updatePhone(number.phoneNumber ?? '');
-                ref
-                    .read(registrationStateProvider.notifier)
-                    .updateCountry(number.isoCode);
               },
               onInputValidated: (bool value) {
                 // no-op for now

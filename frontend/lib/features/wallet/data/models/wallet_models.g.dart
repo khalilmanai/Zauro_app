@@ -43,18 +43,6 @@ Map<String, dynamic> _$WalletUserToJson(WalletUser instance) =>
       'email': instance.email,
     };
 
-WalletBalance _$WalletBalanceFromJson(Map<String, dynamic> json) =>
-    WalletBalance(
-      hbar: json['hbar'] as String,
-      zau: json['zau'] as String,
-    );
-
-Map<String, dynamic> _$WalletBalanceToJson(WalletBalance instance) =>
-    <String, dynamic>{
-      'hbar': instance.hbar,
-      'zau': instance.zau,
-    };
-
 Transaction _$TransactionFromJson(Map<String, dynamic> json) => Transaction(
       id: json['id'] as String,
       walletId: json['walletId'] as String,
@@ -120,24 +108,6 @@ TransferResponse _$TransferResponseFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$TransferResponseToJson(TransferResponse instance) =>
     <String, dynamic>{
       'transactionHash': instance.transactionHash,
-    };
-
-WalletResponse _$WalletResponseFromJson(Map<String, dynamic> json) =>
-    WalletResponse(
-      id: json['id'] as String,
-      hederaAccountId: json['hederaAccountId'] as String,
-      publicKey: json['publicKey'] as String,
-      balance: WalletBalance.fromJson(json['balance'] as Map<String, dynamic>),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-    );
-
-Map<String, dynamic> _$WalletResponseToJson(WalletResponse instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'hederaAccountId': instance.hederaAccountId,
-      'publicKey': instance.publicKey,
-      'balance': instance.balance,
-      'createdAt': instance.createdAt.toIso8601String(),
     };
 
 FundAccountRequest _$FundAccountRequestFromJson(Map<String, dynamic> json) =>

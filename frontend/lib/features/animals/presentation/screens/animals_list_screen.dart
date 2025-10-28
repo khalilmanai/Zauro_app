@@ -31,17 +31,17 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
     final myAnimalsState = ref.watch(myAnimalsProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.grey50,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: Text(
           'My Animals',
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: AppTheme.grey900,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        backgroundColor: AppTheme.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         actions: [
           IconButton(
@@ -61,36 +61,37 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/animals/add'),
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add, color: AppTheme.white),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
   Widget _buildSearchAndFilter() {
     return Container(
-      color: AppTheme.white,
+      color: Theme.of(context).colorScheme.surface,
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           // Search Bar
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.grey100,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
               controller: _searchController,
-              style: GoogleFonts.poppins(fontSize: 16, color: AppTheme.grey900),
+              style: GoogleFonts.poppins(
+                  fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Search animals...',
                 hintStyle: GoogleFonts.poppins(
                   fontSize: 16,
-                  color: AppTheme.grey500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search,
-                  color: AppTheme.grey500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
                 border: InputBorder.none,
@@ -133,7 +134,7 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
         elevation: isSelected ? 4 : 0,
         borderRadius: BorderRadius.circular(20),
         shadowColor: isSelected
-            ? AppTheme.getPrimaryColor(context).withOpacity(0.3)
+            ? AppTheme.getPrimaryColor(context).withValues(alpha: 0.3)
             : Colors.transparent,
         child: FilterChip(
           label: Text(label),
@@ -146,7 +147,7 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
           backgroundColor: Colors.transparent,
           selectedColor: Color.lerp(
             Colors.white,
-            AppTheme.getPrimaryColor(context).withOpacity(0.1),
+            AppTheme.getPrimaryColor(context).withValues(alpha: 0.1),
             0.8,
           ),
           side: BorderSide(
@@ -161,7 +162,7 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             color: isSelected
                 ? AppTheme.getPrimaryColor(context)
-                : AppTheme.grey700,
+                : Theme.of(context).colorScheme.onSurface,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           showCheckmark: true,
@@ -192,10 +193,10 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: PremiumCard(
           borderRadius: 28,
-          padding: const EdgeInsets.all(40),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           gradient: AppTheme.getRainbowGradient(
             opacity: 0.1,
             direction: GradientDirection.topCenter,
@@ -239,7 +240,7 @@ class _AnimalsListScreenState extends ConsumerState<AnimalsListScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
-                  color: AppTheme.grey600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.5,
                 ),
               )

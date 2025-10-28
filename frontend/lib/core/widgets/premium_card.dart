@@ -44,7 +44,6 @@ class _PremiumCardState extends State<PremiumCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _glowAnimation;
 
   bool _isHovered = false;
 
@@ -64,13 +63,7 @@ class _PremiumCardState extends State<PremiumCard>
       curve: widget.animationCurve,
     ));
 
-    _glowAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.animationCurve,
-    ));
+    // Removed unused glow animation
   }
 
   @override
@@ -173,7 +166,7 @@ class GlowingCard extends PremiumCard {
           customShadows: glowColor != null
               ? [
                   BoxShadow(
-                    color: glowColor.withOpacity(0.6),
+                    color: glowColor.withValues(alpha: 0.6),
                     blurRadius: 20,
                     spreadRadius: 2,
                   )
@@ -259,15 +252,15 @@ class StatusCard extends PremiumCard {
   static Color _getStatusColor(CardStatus status) {
     switch (status) {
       case CardStatus.success:
-        return AppTheme.success.withOpacity(0.1);
+        return AppTheme.success.withValues(alpha: 0.1);
       case CardStatus.warning:
-        return AppTheme.warning.withOpacity(0.1);
+        return AppTheme.warning.withValues(alpha: 0.1);
       case CardStatus.error:
-        return AppTheme.error.withOpacity(0.1);
+        return AppTheme.error.withValues(alpha: 0.1);
       case CardStatus.info:
-        return AppTheme.info.withOpacity(0.1);
+        return AppTheme.info.withValues(alpha: 0.1);
       case CardStatus.neutral:
-        return Colors.grey.withOpacity(0.05);
+        return Colors.grey.withValues(alpha: 0.05);
     }
   }
 
@@ -293,7 +286,7 @@ class StatusCard extends PremiumCard {
 
     return [
       BoxShadow(
-        color: statusColor.withOpacity(0.2),
+        color: statusColor.withValues(alpha: 0.2),
         blurRadius: 8,
         offset: const Offset(0, 2),
       ),

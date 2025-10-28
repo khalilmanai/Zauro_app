@@ -24,6 +24,7 @@ class EnvironmentConfig {
     }
   }
 
+  // Environment state checks
   static bool get isProduction => current == Environment.production;
   static bool get isStaging => current == Environment.staging;
   static bool get isDevelopment => current == Environment.development;
@@ -46,6 +47,16 @@ class EnvironmentConfig {
           'PROD_API_URL',
           defaultValue: 'https://api.zauro.com',
         );
+    }
+  }
+
+  // API URL validation
+  static bool _isValidUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.isScheme('http') || uri.isScheme('https');
+    } catch (_) {
+      return false;
     }
   }
 
@@ -103,6 +114,12 @@ class EnvironmentConfig {
   static void validateConfiguration() {
     final errors = <String>[];
 
+    // Validate API URL
+    if (!_isValidUrl(apiBaseUrl)) {
+      errors.add('Invalid API URL format: $apiBaseUrl');
+    }
+
+    // Production-specific validations
     if (isProduction) {
       if (firebaseApiKey.isEmpty) {
         errors.add('FIREBASE_API_KEY is required for production');
@@ -110,9 +127,19 @@ class EnvironmentConfig {
       if (hiveBoxEncryptionKey == 'zauro_default_key_change_in_production') {
         errors.add('HIVE_ENCRYPTION_KEY must be changed for production');
       }
-      if (apiBaseUrl.contains('localhost') || apiBaseUrl.contains('192.168')) {
+      if (apiBaseUrl.contains('localhost') ||
+          apiBaseUrl.contains('192.168') ||
+          apiBaseUrl.contains('10.0.2.2')) {
         errors.add(
             'Production API URL should not point to local/development server');
+      }
+    }
+
+    // Development-specific validations
+    if (isDevelopment) {
+      if (!enableDebugLogging) {
+        errors
+            .add('Debug logging should be enabled in development environment');
       }
     }
 

@@ -2,7 +2,43 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'animal_models.g.dart';
 
-// Animal Model
+// Animal Status Enum (matching backend)
+enum AnimalStatus {
+  @JsonValue('PENDING_EXPERT_REVIEW')
+  pendingExpertReview,
+  @JsonValue('EXPERT_APPROVED')
+  expertApproved,
+  @JsonValue('EXPERT_REJECTED')
+  expertRejected,
+  @JsonValue('LISTED')
+  listed,
+  @JsonValue('MINTED')
+  minted,
+}
+
+extension AnimalStatusExtension on AnimalStatus {
+  String get displayName {
+    switch (this) {
+      case AnimalStatus.pendingExpertReview:
+        return 'Pending Review';
+      case AnimalStatus.expertApproved:
+        return 'Approved';
+      case AnimalStatus.expertRejected:
+        return 'Rejected';
+      case AnimalStatus.listed:
+        return 'Listed';
+      case AnimalStatus.minted:
+        return 'Minted';
+    }
+  }
+
+  bool get isPending => this == AnimalStatus.pendingExpertReview;
+  bool get isApproved => this == AnimalStatus.expertApproved;
+  bool get isRejected => this == AnimalStatus.expertRejected;
+  bool get isMinted => this == AnimalStatus.minted;
+}
+
+// Animal Model (updated to match backend response)
 @JsonSerializable()
 class Animal {
   final String id;
@@ -19,6 +55,8 @@ class Animal {
   final double? aiPredictionValue;
   final String ownerId;
   final bool isListed;
+  final AnimalStatus? reviewStatus; // New field matching backend
+  final String? reviewComment; // New field for admin review comments
   final DateTime createdAt;
   final DateTime updatedAt;
   final AnimalOwner? owner;
@@ -38,6 +76,8 @@ class Animal {
     this.aiPredictionValue,
     required this.ownerId,
     required this.isListed,
+    this.reviewStatus,
+    this.reviewComment,
     required this.createdAt,
     required this.updatedAt,
     this.owner,
@@ -61,6 +101,8 @@ class Animal {
     double? aiPredictionValue,
     String? ownerId,
     bool? isListed,
+    AnimalStatus? reviewStatus,
+    String? reviewComment,
     DateTime? createdAt,
     DateTime? updatedAt,
     AnimalOwner? owner,
@@ -80,6 +122,8 @@ class Animal {
       aiPredictionValue: aiPredictionValue ?? this.aiPredictionValue,
       ownerId: ownerId ?? this.ownerId,
       isListed: isListed ?? this.isListed,
+      reviewStatus: reviewStatus ?? this.reviewStatus,
+      reviewComment: reviewComment ?? this.reviewComment,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       owner: owner ?? this.owner,
@@ -88,6 +132,18 @@ class Animal {
 
   String get displaySpecies {
     switch (species) {
+      case 'DOG':
+        return 'Dog';
+      case 'CAT':
+        return 'Cat';
+      case 'BIRD':
+        return 'Bird';
+      case 'FISH':
+        return 'Fish';
+      case 'REPTILE':
+        return 'Reptile';
+      case 'EXOTIC':
+        return 'Exotic';
       case 'COW':
         return 'Cow';
       case 'GOAT':
@@ -119,6 +175,9 @@ class Animal {
   }
 
   bool get hasNFT => tokenId != null && tokenSerialNumber != null;
+  bool get needsReview => reviewStatus == AnimalStatus.pendingExpertReview;
+  bool get isApproved => reviewStatus == AnimalStatus.expertApproved;
+  bool get canMint => isApproved && !hasNFT;
 }
 
 // Animal Owner Model
@@ -246,6 +305,22 @@ class AnimalFilter {
 
     return params;
   }
+}
+
+// Review Animal Request - Matching backend DTO
+@JsonSerializable()
+class ReviewAnimalRequest {
+  final bool approved;
+  final String? comment;
+
+  const ReviewAnimalRequest({
+    required this.approved,
+    this.comment,
+  });
+
+  factory ReviewAnimalRequest.fromJson(Map<String, dynamic> json) =>
+      _$ReviewAnimalRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$ReviewAnimalRequestToJson(this);
 }
 
 // Animal Sort Options

@@ -70,23 +70,49 @@ class WalletUser {
 }
 
 // Wallet Balance Model - Updated to match backend BalanceResponseDto
-@JsonSerializable()
+// Using custom JSON serialization to handle extra fields flexibly
 class WalletBalance {
   final String hbar;
   final String zau;
+  final Map<String, dynamic>? tokens;
+  final String? timestamp;
 
   const WalletBalance({
     required this.hbar,
     required this.zau,
+    this.tokens,
+    this.timestamp,
   });
 
-  factory WalletBalance.fromJson(Map<String, dynamic> json) =>
-      _$WalletBalanceFromJson(json);
-  Map<String, dynamic> toJson() => _$WalletBalanceToJson(this);
+  // Custom fromJson to gracefully handle all backend fields
+  factory WalletBalance.fromJson(Map<String, dynamic> json) {
+    return WalletBalance(
+      hbar: json['hbar'] as String? ?? '0',
+      zau: json['zau'] as String? ?? '0',
+      tokens: json['tokens'] as Map<String, dynamic>?,
+      timestamp: json['timestamp'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'hbar': hbar,
+        'zau': zau,
+        if (tokens != null) 'tokens': tokens,
+        if (timestamp != null) 'timestamp': timestamp,
+      };
 
   // Convenience getters for backward compatibility
-  double get hbarBalance => double.tryParse(hbar) ?? 0.0;
-  double get zauBalance => double.tryParse(zau) ?? 0.0;
+  // Parse hbar removing the ℏ symbol if present
+  double get hbarBalance {
+    final cleanHbar = hbar.replaceAll(RegExp(r'[^0-9.]'), '').trim();
+    return double.tryParse(cleanHbar) ?? 0.0;
+  }
+
+  // Parse zau removing any symbols
+  double get zauBalance {
+    final cleanZau = zau.replaceAll(RegExp(r'[^0-9.]'), '').trim();
+    return double.tryParse(cleanZau) ?? 0.0;
+  }
 
   WalletBalance copyWith({
     String? hbar,
@@ -100,9 +126,13 @@ class WalletBalance {
 
   double get totalBalance => hbarBalance + zauBalance;
 
-  String get formattedHbarBalance => '${hbarBalance.toStringAsFixed(8)} HBAR';
+  String get formattedHbarBalance => '${hbarBalance.toStringAsFixed(2)} HBAR';
   String get formattedZauBalance => '${zauBalance.toStringAsFixed(2)} ZAU';
-  String get formattedTotalBalance => totalBalance.toStringAsFixed(8);
+  String get formattedTotalBalance => totalBalance.toStringAsFixed(2);
+
+  // Display friendly format
+  String get displayHbar => hbarBalance.toStringAsFixed(2);
+  String get displayZau => zauBalance.toStringAsFixed(2);
 }
 
 // Transaction Model
@@ -253,25 +283,42 @@ class TransferResponse {
 }
 
 // Enhanced Wallet Model - Updated to match backend WalletResponseDto
-@JsonSerializable()
+// Using custom JSON serialization to properly handle nested balance
 class WalletResponse {
   final String id;
   final String hederaAccountId;
   final String publicKey;
-  final WalletBalance balance;
+  final WalletBalance? balance;
   final DateTime createdAt;
 
   const WalletResponse({
     required this.id,
     required this.hederaAccountId,
     required this.publicKey,
-    required this.balance,
+    this.balance,
     required this.createdAt,
   });
 
-  factory WalletResponse.fromJson(Map<String, dynamic> json) =>
-      _$WalletResponseFromJson(json);
-  Map<String, dynamic> toJson() => _$WalletResponseToJson(this);
+  // Custom fromJson to handle nested WalletBalance properly
+  factory WalletResponse.fromJson(Map<String, dynamic> json) {
+    return WalletResponse(
+      id: json['id'] as String,
+      hederaAccountId: json['hederaAccountId'] as String,
+      publicKey: json['publicKey'] as String,
+      balance: json['balance'] != null
+          ? WalletBalance.fromJson(json['balance'] as Map<String, dynamic>)
+          : null,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'hederaAccountId': hederaAccountId,
+        'publicKey': publicKey,
+        if (balance != null) 'balance': balance!.toJson(),
+        'createdAt': createdAt.toIso8601String(),
+      };
 }
 
 // Fund Account Request - New DTO matching backend FundAccountDto
