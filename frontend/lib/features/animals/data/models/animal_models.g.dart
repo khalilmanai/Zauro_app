@@ -21,6 +21,9 @@ Animal _$AnimalFromJson(Map<String, dynamic> json) => Animal(
       aiPredictionValue: (json['aiPredictionValue'] as num?)?.toDouble(),
       ownerId: json['ownerId'] as String,
       isListed: json['isListed'] as bool,
+      reviewStatus:
+          $enumDecodeNullable(_$AnimalStatusEnumMap, json['reviewStatus']),
+      reviewComment: json['reviewComment'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       owner: json['owner'] == null
@@ -43,10 +46,20 @@ Map<String, dynamic> _$AnimalToJson(Animal instance) => <String, dynamic>{
       'aiPredictionValue': instance.aiPredictionValue,
       'ownerId': instance.ownerId,
       'isListed': instance.isListed,
+      'reviewStatus': _$AnimalStatusEnumMap[instance.reviewStatus],
+      'reviewComment': instance.reviewComment,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
       'owner': instance.owner,
     };
+
+const _$AnimalStatusEnumMap = {
+  AnimalStatus.pendingExpertReview: 'PENDING_EXPERT_REVIEW',
+  AnimalStatus.expertApproved: 'EXPERT_APPROVED',
+  AnimalStatus.expertRejected: 'EXPERT_REJECTED',
+  AnimalStatus.listed: 'LISTED',
+  AnimalStatus.minted: 'MINTED',
+};
 
 AnimalOwner _$AnimalOwnerFromJson(Map<String, dynamic> json) => AnimalOwner(
       id: json['id'] as String,
@@ -107,4 +120,17 @@ Map<String, dynamic> _$UpdateAnimalRequestToJson(
       'gender': instance.gender,
       'description': instance.description,
       'aiPredictionValue': instance.aiPredictionValue,
+    };
+
+ReviewAnimalRequest _$ReviewAnimalRequestFromJson(Map<String, dynamic> json) =>
+    ReviewAnimalRequest(
+      approved: json['approved'] as bool,
+      comment: json['comment'] as String?,
+    );
+
+Map<String, dynamic> _$ReviewAnimalRequestToJson(
+        ReviewAnimalRequest instance) =>
+    <String, dynamic>{
+      'approved': instance.approved,
+      'comment': instance.comment,
     };

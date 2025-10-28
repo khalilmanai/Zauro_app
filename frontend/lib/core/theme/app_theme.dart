@@ -1069,7 +1069,7 @@ class AppTheme {
   }
 
   // Interactive Hover Effects
-  static Map<MaterialState, IconThemeData> getIconThemeData(
+  static Map<WidgetState, IconThemeData> getIconThemeData(
     BuildContext context, {
     bool isHovered = false,
     Color? color,
@@ -1078,17 +1078,17 @@ class AppTheme {
 
     return {
       if (isHovered)
-        MaterialState.hovered: IconThemeData(
+        WidgetState.hovered: IconThemeData(
           color: baseColor.withValues(alpha: 0.8),
           size: 24,
         ),
       if (!isHovered)
-        MaterialState.focused: IconThemeData(
+        WidgetState.focused: IconThemeData(
           color: baseColor,
           size: 24,
         ),
     }..putIfAbsent(
-        MaterialState.selected,
+        WidgetState.selected,
         () => IconThemeData(
               color: baseColor,
               size: 24,

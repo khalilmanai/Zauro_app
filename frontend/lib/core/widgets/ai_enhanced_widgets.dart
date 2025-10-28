@@ -13,6 +13,7 @@ class AIEnhancedCard extends StatefulWidget {
   final bool hasAIGlow;
   final Color? glowColor;
   final VoidCallback? onTap;
+  final bool enableAnimations;
 
   const AIEnhancedCard({
     super.key,
@@ -25,6 +26,7 @@ class AIEnhancedCard extends StatefulWidget {
     this.hasAIGlow = false,
     this.glowColor,
     this.onTap,
+    this.enableAnimations = true,
   });
 
   @override
@@ -41,7 +43,7 @@ class _AIEnhancedCardState extends State<AIEnhancedCard>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
     _glowAnimation = Tween<double>(
@@ -52,7 +54,7 @@ class _AIEnhancedCardState extends State<AIEnhancedCard>
       curve: Curves.easeInOut,
     ));
 
-    if (widget.hasAIGlow) {
+    if (widget.hasAIGlow && widget.enableAnimations) {
       _animationController.repeat(reverse: true);
     }
   }
@@ -142,6 +144,7 @@ class AIStatsCard extends StatefulWidget {
   final bool isPositive;
   final bool isLarge;
   final bool hasAIGlow;
+  final bool enableAnimations;
 
   const AIStatsCard({
     super.key,
@@ -154,6 +157,7 @@ class AIStatsCard extends StatefulWidget {
     required this.isPositive,
     this.isLarge = false,
     this.hasAIGlow = false,
+    this.enableAnimations = true,
   });
 
   @override
@@ -169,7 +173,7 @@ class _AIStatsCardState extends State<AIStatsCard>
   void initState() {
     super.initState();
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     _pulseAnimation = Tween<double>(
@@ -180,7 +184,7 @@ class _AIStatsCardState extends State<AIStatsCard>
       curve: Curves.easeInOut,
     ));
 
-    if (widget.hasAIGlow) {
+    if (widget.hasAIGlow && widget.enableAnimations) {
       _pulseController.repeat(reverse: true);
     }
   }
@@ -302,6 +306,7 @@ class AIActionCard extends StatefulWidget {
   final Color color;
   final VoidCallback onTap;
   final bool hasAIGlow;
+  final bool enableAnimations;
 
   const AIActionCard({
     super.key,
@@ -311,6 +316,7 @@ class AIActionCard extends StatefulWidget {
     required this.color,
     required this.onTap,
     this.hasAIGlow = false,
+    this.enableAnimations = true,
   });
 
   @override
@@ -326,9 +332,13 @@ class _AIActionCardState extends State<AIActionCard>
   void initState() {
     super.initState();
     _hoverController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 150),
       vsync: this,
     );
+
+    if (!widget.enableAnimations) {
+      _hoverController.value = 0.0;
+    }
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 1.02,
@@ -436,11 +446,11 @@ class _AIEnhancedHeaderState extends State<AIEnhancedHeader>
   void initState() {
     super.initState();
     _particleController = AnimationController(
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 8),
       vsync: this,
     );
 
-    _particles = List.generate(20, (index) => Particle());
+    _particles = List.generate(10, (index) => Particle());
 
     if (widget.showParticles) {
       _particleController.repeat();

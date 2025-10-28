@@ -26,6 +26,13 @@ final myAnimalsProvider =
   return MyAnimalsNotifier(repository);
 });
 
+// Pending Review Animals Provider (Admin/Manager only)
+final pendingReviewAnimalsProvider = StateNotifierProvider<
+    PendingReviewAnimalsNotifier, AsyncValue<List<Animal>>>((ref) {
+  final repository = ref.watch(animalsRepositoryProvider);
+  return PendingReviewAnimalsNotifier(repository);
+});
+
 class AnimalsNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
   final AnimalsRepository _repository;
 
@@ -150,6 +157,35 @@ class AnimalNotifier extends StateNotifier<AsyncValue<Animal?>> {
     }
   }
 
+  /// Review animal (Admin/Manager only)
+  Future<void> reviewAnimal({
+    required bool approved,
+    String? comment,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final animal = await _repository.reviewAnimal(
+        id: _animalId,
+        approved: approved,
+        comment: comment,
+      );
+      state = AsyncValue.data(animal);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  /// Mint NFT for approved animal
+  Future<void> mintAnimal() async {
+    state = const AsyncValue.loading();
+    try {
+      final animal = await _repository.mintAnimal(_animalId);
+      state = AsyncValue.data(animal);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
   /// Refresh animal data
   Future<void> refresh() async {
     await getAnimal();
@@ -217,6 +253,81 @@ class MyAnimalsNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
   }
 
   /// Clear my animals state
+  void clear() {
+    state = const AsyncValue.data([]);
+  }
+}
+
+class PendingReviewAnimalsNotifier
+    extends StateNotifier<AsyncValue<List<Animal>>> {
+  final AnimalsRepository _repository;
+
+  PendingReviewAnimalsNotifier(this._repository)
+      : super(const AsyncValue.data([]));
+
+  /// Get animals pending expert review
+  Future<void> getPendingReviewAnimals({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _repository.getPendingReviewAnimals(
+        page: page,
+        limit: limit,
+      );
+      state = AsyncValue.data(response.data);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  /// Review and approve an animal
+  Future<void> approveAnimal(String animalId, {String? comment}) async {
+    try {
+      final animal = await _repository.reviewAnimal(
+        id: animalId,
+        approved: true,
+        comment: comment,
+      );
+
+      // Remove from pending list
+      final currentAnimals = state.value ?? [];
+      final updatedAnimals =
+          currentAnimals.where((a) => a.id != animalId).toList();
+      state = AsyncValue.data(updatedAnimals);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Review and reject an animal
+  Future<void> rejectAnimal(String animalId, {String? comment}) async {
+    try {
+      final animal = await _repository.reviewAnimal(
+        id: animalId,
+        approved: false,
+        comment: comment,
+      );
+
+      // Remove from pending list
+      final currentAnimals = state.value ?? [];
+      final updatedAnimals =
+          currentAnimals.where((a) => a.id != animalId).toList();
+      state = AsyncValue.data(updatedAnimals);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Refresh pending animals
+  Future<void> refresh() async {
+    await getPendingReviewAnimals();
+  }
+
+  /// Clear pending animals state
   void clear() {
     state = const AsyncValue.data([]);
   }

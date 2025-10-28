@@ -42,14 +42,15 @@ class AuthRepository {
         'password': password,
         'firstName': firstName,
         'lastName': lastName,
-        // include country if provided
         'country': country,
       };
       // remove null values
       payload.removeWhere((k, v) => v == null);
 
       // Use the underlying Dio instance from the generated ApiClient to send a raw request
-      final dio = (_apiClient as dynamic).dio as Dio;
+      // We now expose a typed getter on ApiClient via a library-scoped extension
+      // (see `api_client.dart`) so we can safely access the Dio instance.
+      final dio = _apiClient.dio;
       final rawResp = await dio.post('/auth/register', data: payload);
 
       // Normalize response: backend might return either direct auth object or ApiResponse wrapper

@@ -3,35 +3,35 @@ import 'package:flutter/material.dart';
 /// Centralized color palette for the entire application.
 /// Update values here to affect both light and dark themes globally.
 class AppColors {
-  // Light Mode Colors
+  // Light Mode Colors - Nature-inspired Green Theme
   static const Color lightBackground = Color(0xFFF9FCF9);
   static const Color lightForeground = Color(0xFF0F1A10);
-  static const Color lightPrimary = Color(0xFF215732);
+  static const Color lightPrimary = Color(0xFF215732); // Forest green
   static const Color lightPrimaryForeground = Color(0xFFF9FCF9);
   static const Color lightSecondary = Color(0xFFE7F0E7);
   static const Color lightSecondaryForeground = Color(0xFF215732);
   static const Color lightMuted = Color(0xFFEFF5EF);
   static const Color lightMutedForeground = Color(0xFF3A5940);
-  static const Color lightAccent = Color(0xFFE9D3B0);
+  static const Color lightAccent = Color(0xFFE9D3B0); // Warm earth accent
   static const Color lightAccentForeground = Color(0xFF1D3422);
-  static const Color lightDestructive = Color(0xFFB23A1F);
+  static const Color lightDestructive = Color(0xFFB23A1F); // Terracotta red
   static const Color lightDestructiveForeground = Color(0xFFF9FCF9);
   static const Color lightBorder = Color(0xFFDFE7DF);
   static const Color lightInput = Color(0xFFF3F7F3);
   static const Color lightRing = Color(0xFF215732);
 
-  // Dark Mode Colors
+  // Dark Mode Colors - Nature-inspired Dark Green Theme
   static const Color darkBackground = Color(0xFF0B120C);
   static const Color darkForeground = Color(0xFFF3F8F3);
-  static const Color darkPrimary = Color(0xFF397D4C);
+  static const Color darkPrimary = Color(0xFF397D4C); // Bright forest green
   static const Color darkPrimaryForeground = Color(0xFF0B120C);
   static const Color darkSecondary = Color(0xFF25372A);
   static const Color darkSecondaryForeground = Color(0xFFF3F8F3);
   static const Color darkMuted = Color(0xFF1D2C21);
   static const Color darkMutedForeground = Color(0xFF4A7C56);
-  static const Color darkAccent = Color(0xFF5A422B);
+  static const Color darkAccent = Color(0xFF5A422B); // Dark earth accent
   static const Color darkAccentForeground = Color(0xFFF3F8F3);
-  static const Color darkDestructive = Color(0xFF8F2F18);
+  static const Color darkDestructive = Color(0xFF8F2F18); // Dark terracotta red
   static const Color darkDestructiveForeground = Color(0xFFF3F8F3);
   static const Color darkBorder = Color(0xFF25372A);
   static const Color darkInput = Color(0xFF1D2C21);

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'environment.dart';
 
 class AppConfig {
   // App Information
@@ -7,33 +7,9 @@ class AppConfig {
   static const String appDescription =
       'Blockchain-based Animal Trading Platform';
 
-  // Environment Detection
-  static bool get isProduction => kReleaseMode;
-  static bool get isDevelopment => kDebugMode;
-  static bool get isStaging => kProfileMode;
-
   // API Configuration
-  static String get baseUrl {
-    if (isProduction) {
-      return const String.fromEnvironment(
-        'PROD_API_BASE_URL',
-        defaultValue: 'https://api.zauro.com',
-      );
-    } else if (isStaging) {
-      return const String.fromEnvironment(
-        'STAGING_API_BASE_URL',
-        defaultValue: 'https://staging-api.zauro.com',
-      );
-    } else {
-      return const String.fromEnvironment(
-        'DEV_API_BASE_URL',
-        defaultValue: 'http://10.0.2.2:3002',
-      );
-    }
-  }
-
   static const String apiPrefix = '/api/v1';
-  static String get fullApiUrl => '$baseUrl$apiPrefix';
+  static String get fullApiUrl => '${EnvironmentConfig.apiBaseUrl}$apiPrefix';
 
   // Legacy Configuration (deprecated)
   @Deprecated('Use baseUrl getter instead')
@@ -46,6 +22,61 @@ class AppConfig {
   static const String animalsEndpoint = '/animals';
   static const String tradesEndpoint = '/trades';
   static const String walletsEndpoint = '/wallets';
+  static const String didEndpoint = '/did';
+  static const String adminCollectionsEndpoint = '/admin/collections';
+
+  // Auth Endpoints
+  static const String loginEndpoint = '$authEndpoint/login';
+  static const String registerEndpoint = '$authEndpoint/register';
+  static const String refreshTokenEndpoint = '$authEndpoint/refresh';
+  static const String forgotPasswordRequestEndpoint =
+      '$authEndpoint/forgot-password/request';
+  static const String forgotPasswordVerifyEndpoint =
+      '$authEndpoint/forgot-password/verify';
+  static const String forgotPasswordResetEndpoint =
+      '$authEndpoint/forgot-password/reset';
+  static const String profileEndpoint = '$authEndpoint/profile';
+
+  // Wallet Endpoints
+  static const String createWalletEndpoint = '$walletsEndpoint/create';
+  static const String myWalletEndpoint = '$walletsEndpoint/my-wallet';
+  static const String myWalletBalanceEndpoint =
+      '$walletsEndpoint/my-wallet/balance';
+  static const String transferHbarEndpoint = '$walletsEndpoint/transfer/hbar';
+  static const String fundMyAccountEndpoint =
+      '$walletsEndpoint/fund/my-account';
+  static const String fundAccountEndpoint = '$walletsEndpoint/fund/account';
+  static const String createWalletWithBalanceEndpoint =
+      '$walletsEndpoint/create-with-balance';
+
+  // Animal Endpoints
+  static const String createAnimalEndpoint = '$animalsEndpoint';
+  static const String getAnimalsEndpoint = '$animalsEndpoint';
+
+  // Trading Endpoints
+  static const String listTradeEndpoint = '$tradesEndpoint/list';
+  static const String getTradesEndpoint = '$tradesEndpoint';
+
+  // DID Endpoints
+  static const String myDidEndpoint = '$didEndpoint/my-did';
+  static const String createDidEndpoint = '$didEndpoint/create';
+  static const String credentialsEndpoint = '$didEndpoint/credentials';
+  static const String issueKycCredentialEndpoint =
+      '$didEndpoint/credentials/issue/kyc';
+  static const String issueReputationCredentialEndpoint =
+      '$didEndpoint/credentials/issue/reputation';
+  static const String issueVeterinaryCredentialEndpoint =
+      '$didEndpoint/credentials/issue/veterinary';
+  static const String verifyCredentialEndpoint =
+      '$didEndpoint/credentials/verify';
+
+  // Admin Collection Endpoints
+  static const String createCollectionEndpoint = '$adminCollectionsEndpoint';
+  static const String listCollectionsEndpoint = '$adminCollectionsEndpoint';
+  static const String defaultCollectionEndpoint =
+      '$adminCollectionsEndpoint/default';
+  static const String rotateCollectionEndpoint =
+      '$adminCollectionsEndpoint/rotate-if-full';
 
   // Storage Keys
   static const String accessTokenKey = 'access_token';
@@ -83,12 +114,24 @@ class AppConfig {
   static const int otpLength = 6;
   static const Duration otpExpiration = Duration(minutes: 10);
 
-  // Animal Species
+  // Animal Species (matching backend AnimalSpecies enum)
   static const List<String> animalSpecies = [
-    'COW',
-    'GOAT',
-    'SHEEP',
+    'DOG',
+    'CAT',
+    'BIRD',
+    'FISH',
+    'REPTILE',
+    'EXOTIC',
     'OTHER',
+  ];
+
+  // Animal Status (matching backend AnimalStatus enum)
+  static const List<String> animalStatuses = [
+    'PENDING_EXPERT_REVIEW',
+    'EXPERT_APPROVED',
+    'EXPERT_REJECTED',
+    'LISTED',
+    'MINTED',
   ];
 
   // Animal Genders
@@ -97,21 +140,41 @@ class AppConfig {
     'FEMALE',
   ];
 
-  // User Roles
+  // User Roles (matching backend UserRole enum)
   static const List<String> userRoles = [
+    'USER',
     'ADMIN',
     'HR_MANAGER',
-    'EMPLOYEE_TRADER',
   ];
 
-  // Trade Status
+  // Trade Status (matching backend TradeStatus enum)
   static const List<String> tradeStatus = [
     'PENDING',
     'LISTED',
     'IN_PROGRESS',
     'COMPLETED',
     'CANCELLED',
-    'FAILED',
+  ];
+
+  // Credential Types
+  static const List<String> credentialTypes = [
+    'KYC',
+    'REPUTATION',
+    'VETERINARY',
+  ];
+
+  // Credential Status (matching backend CredentialStatus enum)
+  static const List<String> credentialStatuses = [
+    'ACTIVE',
+    'REVOKED',
+    'EXPIRED',
+    'PENDING',
+  ];
+
+  // Collection Status
+  static const List<String> collectionStatuses = [
+    'ACTIVE',
+    'DISABLED',
   ];
 
   // Currency Types

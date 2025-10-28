@@ -23,12 +23,12 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
     _textController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
@@ -37,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _logoController,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutCubic,
     ));
 
     _textAnimation = Tween<double>(

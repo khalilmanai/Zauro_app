@@ -33,6 +33,9 @@ dependencies:
   cached_network_image: ^3.3.0
   shimmer: ^3.0.0
   intl_phone_number_input: ^0.7.5
+  country_picker: ^2.0.24
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
   pull_to_refresh: ^2.0.0
   infinite_scroll_pagination: ^5.1.1
   flutter_carousel_widget: ^2.0.0
@@ -71,6 +74,7 @@ dependencies:
   # Crypto & Security
   crypto: ^3.0.3
   encrypt: ^5.0.3
+  local_auth: ^2.1.8
   
   # Forms & Validation
   flutter_form_builder: ^10.2.0

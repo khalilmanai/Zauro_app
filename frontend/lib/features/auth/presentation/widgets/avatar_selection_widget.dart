@@ -29,8 +29,6 @@ class AvatarSelectionWidget extends StatefulWidget {
 class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
     with TickerProviderStateMixin {
   int _currentIndex = 0;
-  final carousel.CarouselController _carouselController =
-      carousel.CarouselController();
 
   final AvatarService _avatarService = AvatarService();
   List<Avatar> _avatars = [];
@@ -38,7 +36,8 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
   bool _isLoadingMore = false;
   String? _error;
   bool _isInitialized = false;
-  static const int _batchSize = 5;
+  static const int _initialBatchSize = 20; // Load more avatars initially
+  static const int _moreBatchSize = 10; // Increased from 3 to 10
   int _loadedCount = 0;
 
   late AnimationController _fadeController;
@@ -87,11 +86,16 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
       List<AvatarData> avatarDataList = [];
 
       try {
+        // Try to fetch predefined avatars first (now loads in parallel - MUCH faster!)
         avatarDataList = await _avatarService.fetchPredefinedAvatars();
       } catch (e) {
-        avatarDataList =
-            await _avatarService.fetchRandomAvatars(count: _batchSize);
+        // Fallback to random avatars with larger batch size
+        avatarDataList = await _avatarService.fetchRandomAvatars(
+          count: _initialBatchSize,
+        );
       }
+
+      if (!mounted) return;
 
       setState(() {
         _avatars = avatarDataList.map((data) => data.toAvatar()).toList();
@@ -100,27 +104,13 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
         _isInitialized = true;
       });
 
-      // Pre-cache a small batch of images to reduce jank on first view
-      final toPrecache = _avatars
-          .take(10)
-          .where((a) => a.imageUrl.startsWith('http'))
-          .toList();
-      if (toPrecache.isNotEmpty) {
-        // run in background so UI isn't blocked
-        Future(() async {
-          for (final a in toPrecache) {
-            try {
-              await precacheImage(
-                  CachedNetworkImageProvider(a.imageUrl), context);
-            } catch (_) {
-              // ignore individual precache errors
-            }
-          }
-        });
-      }
-
       _fadeController.forward();
+
+      // Pre-cache images in background (optimized - don't block UI)
+      _precacheAvatarImages(_avatars.take(6).toList());
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = 'Failed to load avatars. Please check your connection.';
         _isLoading = false;
@@ -129,6 +119,28 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
         _isInitialized = true;
       });
     }
+  }
+
+  /// Optimized image precaching - runs in background without blocking UI
+  void _precacheAvatarImages(List<Avatar> avatars) {
+    if (!mounted) return;
+
+    final toPrecache =
+        avatars.where((a) => a.imageUrl.startsWith('http')).toList();
+    if (toPrecache.isEmpty) return;
+
+    // Schedule precaching in next frame to avoid blocking current build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final avatar in toPrecache) {
+        precacheImage(
+          CachedNetworkImageProvider(avatar.imageUrl),
+          context,
+        ).catchError((_) {
+          // Silently ignore precache errors
+        });
+      }
+    });
   }
 
   Future<void> _loadMoreAvatars() async {
@@ -140,33 +152,25 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
 
     try {
       final newAvatars = await _avatarService.fetchMoreAvatars(
-        count: _batchSize,
+        count: _moreBatchSize, // Increased batch size for faster loading
         offset: _loadedCount,
       );
 
+      if (!mounted) return;
+
+      final newAvatarsList = newAvatars.map((data) => data.toAvatar()).toList();
+
       setState(() {
-        _avatars.addAll(newAvatars.map((data) => data.toAvatar()));
+        _avatars.addAll(newAvatarsList);
         _loadedCount = _avatars.length;
         _isLoadingMore = false;
       });
 
-      // Pre-cache newly loaded avatars (small batch)
-      final newly = newAvatars
-          .map((d) => d.toAvatar())
-          .take(10)
-          .where((a) => a.imageUrl.startsWith('http'))
-          .toList();
-      if (newly.isNotEmpty) {
-        Future(() async {
-          for (final a in newly) {
-            try {
-              await precacheImage(
-                  CachedNetworkImageProvider(a.imageUrl), context);
-            } catch (_) {}
-          }
-        });
-      }
+      // Pre-cache newly loaded avatars (optimized)
+      _precacheAvatarImages(newAvatarsList.take(6).toList());
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _isLoadingMore = false;
       });
@@ -209,8 +213,6 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
           _isLoading ? const SizedBox.shrink() : _buildAvatarInfo(),
           const SizedBox(height: 12),
           _isLoading ? const SizedBox.shrink() : _buildLoadingStatus(),
-          const SizedBox(height: 24),
-          _isLoading ? const SizedBox.shrink() : _buildNavigationButtons(),
           if (_error != null && !_isLoading) ...[
             const SizedBox(height: 20),
             _buildErrorView(),
@@ -269,7 +271,8 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
               onPageChanged: (index, reason) {
                 setState(() {
                   _currentIndex = index;
-                  if (index >= _avatars.length - 2) {
+                  // Load more when user is 5 avatars away from the end (proactive loading)
+                  if (index >= _avatars.length - 5 && !_isLoadingMore) {
                     _loadMoreAvatars();
                   }
                 });
@@ -293,109 +296,138 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
                           _currentIndex = _avatars.indexOf(avatar);
                         });
                       },
-                      child: Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
-                            child: Stack(
-                              children: [
-                                avatar.imageUrl.startsWith('http')
-                                    ? CachedNetworkImage(
-                                        imageUrl: avatar.imageUrl,
-                                        fit: BoxFit.cover,
-                                        placeholder: (context, url) =>
-                                            Shimmer.fromColors(
-                                          baseColor: AppTheme.grey100,
-                                          highlightColor: AppTheme.grey50,
-                                          child: Container(
-                                            color: AppTheme.grey50,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(
+                                  isSelected || isCurrent ? 0.15 : 0.08),
+                              blurRadius: isSelected || isCurrent ? 24 : 12,
+                              offset:
+                                  Offset(0, isSelected || isCurrent ? 8 : 4),
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            // Main avatar image with improved styling
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    avatar.imageUrl.startsWith('http')
+                                        ? CachedNetworkImage(
+                                            imageUrl: avatar.imageUrl,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) =>
+                                                Shimmer.fromColors(
+                                              baseColor: AppTheme.grey100,
+                                              highlightColor: AppTheme.grey50,
+                                              child: Container(
+                                                color: AppTheme.grey50,
+                                              ),
+                                            ),
+                                            errorWidget:
+                                                (context, url, error) =>
+                                                    _buildPlaceholderAvatar(
+                                                        avatar.name),
+                                            fadeInDuration: const Duration(
+                                                milliseconds: 200),
+                                            useOldImageOnUrlChange: true,
+                                            cacheKey: avatar.id,
+                                            maxHeightDiskCache: 400,
+                                            maxWidthDiskCache: 400,
+                                            memCacheHeight: 300,
+                                            memCacheWidth: 300,
+                                          )
+                                        : _buildPlaceholderAvatar(avatar.name),
+                                    // Subtle gradient overlay for depth
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      child: Container(
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withOpacity(
+                                                  isSelected || isCurrent
+                                                      ? 0.25
+                                                      : 0.15),
+                                            ],
                                           ),
                                         ),
-                                        errorWidget: (context, url, error) =>
-                                            _buildPlaceholderAvatar(
-                                                avatar.name),
-                                        fadeInDuration:
-                                            const Duration(milliseconds: 260),
-                                        useOldImageOnUrlChange: true,
-                                        cacheKey: avatar.id,
-                                      )
-                                    : _buildPlaceholderAvatar(avatar.name),
-                                // Gradient overlay
-                                Positioned(
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Selection indicator with modern design
+                            if (isSelected || isCurrent)
+                              Positioned(
+                                top: 16,
+                                right: 16,
+                                child: ScaleTransition(
+                                  scale: Tween<double>(begin: 0.0, end: 1.0)
+                                      .animate(CurvedAnimation(
+                                    parent: _fadeController,
+                                    curve: Curves.elasticOut,
+                                  )),
                                   child: Container(
-                                    height: 60,
+                                    padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
                                         colors: [
-                                          Colors.transparent,
-                                          Colors.black.withOpacity(0.3),
+                                          Colors.white,
+                                          Colors.white.withOpacity(0.95),
                                         ],
                                       ),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      Icons.check_circle_rounded,
+                                      color: AppTheme.primaryColor,
+                                      size: 24,
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          // Animated border overlay
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 400),
-                            curve: Curves.easeOutCubic,
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(
-                                color: isSelected || isCurrent
-                                    ? AppTheme.primaryColor
-                                    : Colors.transparent,
-                                width: isSelected || isCurrent ? 3 : 0,
                               ),
-                              boxShadow: [
-                                if (isSelected || isCurrent)
-                                  BoxShadow(
-                                    color:
-                                        AppTheme.primaryColor.withOpacity(0.25),
-                                    blurRadius: 20,
-                                    spreadRadius: 2,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (isSelected || isCurrent)
-                            Positioned(
-                              top: 12,
-                              right: 20,
-                              child: ScaleTransition(
-                                scale: Tween<double>(begin: 0.8, end: 1.0)
-                                    .animate(_fadeController),
+                            // Active indicator ring (subtle)
+                            if (isSelected || isCurrent)
+                              Positioned.fill(
                                 child: Container(
-                                  padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppTheme.primaryColor
-                                            .withOpacity(0.4),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.check_rounded,
-                                    color: Colors.white,
-                                    size: 18,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 2,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -404,30 +436,24 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
               if (_isLoadingMore)
                 Builder(
                   builder: (BuildContext context) {
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeInOut,
+                    return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 8),
                       width: MediaQuery.of(context).size.width * 0.65,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(32),
+                        borderRadius: BorderRadius.circular(24),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            AppTheme.primaryColor.withOpacity(0.08),
-                            AppTheme.accentColor.withOpacity(0.08),
+                            Colors.white,
+                            AppTheme.grey50.withOpacity(0.5),
                           ],
-                        ),
-                        border: Border.all(
-                          color: AppTheme.primaryColor.withOpacity(0.2),
-                          width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withOpacity(0.05),
-                            blurRadius: 12,
-                            spreadRadius: 0,
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -436,29 +462,29 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(
-                              width: 40,
-                              height: 40,
+                              width: 44,
+                              height: 44,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
+                                strokeWidth: 3,
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                     AppTheme.primaryColor),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
                             Text(
                               'Loading more avatars',
                               style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.grey700,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.grey800,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               'Discovering new faces',
                               style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                color: AppTheme.grey500,
+                                fontSize: 12,
+                                color: AppTheme.grey600,
                               ),
                             ),
                           ],
@@ -524,29 +550,24 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
       mainAxisAlignment: MainAxisAlignment.center,
       children: _avatars.asMap().entries.map((entry) {
         final isActive = _currentIndex == entry.key;
-        return GestureDetector(
-          onTap: () {
-            _carouselController.jumpToPage(entry.key);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeOutCubic,
-            width: isActive ? 32 : 8,
-            height: 8,
-            margin: const EdgeInsets.symmetric(horizontal: 5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              color: isActive ? AppTheme.primaryColor : AppTheme.grey300,
-              boxShadow: isActive
-                  ? [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.3),
-                        blurRadius: 8,
-                        spreadRadius: 0,
-                      ),
-                    ]
-                  : null,
-            ),
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          width: isActive ? 32 : 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            color: isActive ? AppTheme.primaryColor : AppTheme.grey300,
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 0,
+                    ),
+                  ]
+                : null,
           ),
         );
       }).toList(),
@@ -560,8 +581,8 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.primaryColor.withOpacity(0.15),
-            AppTheme.accentColor.withOpacity(0.15),
+            AppTheme.grey50,
+            AppTheme.grey100.withOpacity(0.5),
           ],
         ),
       ),
@@ -569,12 +590,19 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.person_outline_rounded,
-              size: 48,
-              color: AppTheme.primaryColor,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person_outline_rounded,
+                size: 48,
+                color: AppTheme.grey600,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
@@ -582,7 +610,7 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
                 style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.grey700,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -603,35 +631,20 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
     return SlideTransition(
       position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
           .animate(_slideController),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.grey100),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 12,
-              spreadRadius: 0,
-            ),
-          ],
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Row(
           children: [
             Container(
-              width: 60,
-              height: 60,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                border: Border.all(
-                  color: AppTheme.primaryColor.withOpacity(0.2),
-                ),
+                color: AppTheme.grey100,
               ),
               child: currentAvatar.imageUrl.startsWith('http')
                   ? ClipRRect(
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(16),
                       child: CachedNetworkImage(
                         imageUrl: currentAvatar.imageUrl,
                         fit: BoxFit.cover,
@@ -644,19 +657,25 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
                         ),
                         errorWidget: (context, url, error) => Icon(
                           Icons.person_rounded,
-                          color: AppTheme.primaryColor,
+                          color: AppTheme.grey600,
+                          size: 28,
                         ),
-                        fadeInDuration: const Duration(milliseconds: 220),
+                        fadeInDuration: const Duration(milliseconds: 150),
                         useOldImageOnUrlChange: true,
                         cacheKey: currentAvatar.id,
+                        maxHeightDiskCache: 100,
+                        maxWidthDiskCache: 100,
+                        memCacheHeight: 80,
+                        memCacheWidth: 80,
                       ),
                     )
                   : Icon(
                       Icons.person_rounded,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.grey600,
+                      size: 28,
                     ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -667,6 +686,7 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.grey900,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -680,8 +700,8 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
                     child: Text(
                       currentAvatar.category,
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: AppTheme.primaryColor,
                       ),
                     ),
@@ -690,85 +710,6 @@ class _AvatarSelectionWidgetState extends State<AvatarSelectionWidget>
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavigationButtons() {
-    return Row(
-      children: [
-        _buildNavButton(
-          label: 'Previous',
-          isEnabled: _currentIndex > 0,
-          onPressed: () {
-            if (_currentIndex > 0) {
-              _carouselController.previousPage();
-            }
-          },
-          isPrimary: false,
-        ),
-        const SizedBox(width: 12),
-        _buildNavButton(
-          label: 'Next',
-          isEnabled: _currentIndex < _avatars.length - 1,
-          onPressed: () {
-            if (_currentIndex < _avatars.length - 1) {
-              _carouselController.nextPage();
-            }
-          },
-          isPrimary: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNavButton({
-    required String label,
-    required bool isEnabled,
-    required VoidCallback onPressed,
-    required bool isPrimary,
-  }) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isEnabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: isPrimary
-                  ? (isEnabled ? AppTheme.primaryColor : AppTheme.grey200)
-                  : Colors.transparent,
-              border: Border.all(
-                color: isPrimary ? Colors.transparent : AppTheme.grey300,
-              ),
-              boxShadow: isPrimary && isEnabled
-                  ? [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.2),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isPrimary
-                      ? (isEnabled ? Colors.white : AppTheme.grey500)
-                      : (isEnabled ? AppTheme.grey700 : AppTheme.grey400),
-                ),
-              ),
-            ),
-          ),
         ),
       ),
     );

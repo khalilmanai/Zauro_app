@@ -6,23 +6,26 @@ class AvatarService {
   static const int _minId = 0;
   static const int _maxId = 100;
 
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 5),
+      sendTimeout: const Duration(seconds: 5),
+    ),
+  );
 
   /// Fetches a batch of random avatars from Iran Liara API
   Future<List<AvatarData>> fetchRandomAvatars({int count = 5}) async {
     try {
-      List<AvatarData> avatars = [];
+      // Generate all IDs first
+      final ids = List.generate(count, (_) => _generateRandomId());
 
-      // Generate avatars using random IDs for variety
-      for (int i = 0; i < count; i++) {
-        final id = _generateRandomId();
-        final avatarData = await _generateAvatar(id.toString());
-        if (avatarData != null) {
-          avatars.add(avatarData);
-        }
-      }
+      // Fetch all avatars in parallel for faster loading
+      final futures = ids.map((id) => _generateAvatarFast(id.toString()));
+      final results = await Future.wait(futures);
 
-      return avatars;
+      // Filter out null results
+      return results.whereType<AvatarData>().toList();
     } catch (e) {
       throw Exception('Failed to fetch avatars: $e');
     }
@@ -32,18 +35,18 @@ class AvatarService {
   Future<List<AvatarData>> fetchMoreAvatars(
       {int count = 5, int offset = 0}) async {
     try {
-      List<AvatarData> avatars = [];
+      // Generate all IDs with offset first
+      final ids = List.generate(
+        count,
+        (i) => _generateRandomIdWithOffset(offset + i),
+      );
 
-      // Generate more avatars with offset for variety
-      for (int i = offset; i < offset + count; i++) {
-        final id = _generateRandomIdWithOffset(i);
-        final avatarData = await _generateAvatar(id.toString());
-        if (avatarData != null) {
-          avatars.add(avatarData);
-        }
-      }
+      // Fetch all avatars in parallel for faster loading
+      final futures = ids.map((id) => _generateAvatarFast(id.toString()));
+      final results = await Future.wait(futures);
 
-      return avatars;
+      // Filter out null results
+      return results.whereType<AvatarData>().toList();
     } catch (e) {
       throw Exception('Failed to fetch more avatars: $e');
     }
@@ -56,26 +59,22 @@ class AvatarService {
         _minId;
   }
 
-  /// Generates a single avatar using Iran Liara API
-  Future<AvatarData?> _generateAvatar(String avatarId) async {
+  /// Fast avatar generation without API verification (optimized)
+  /// Since avatar URLs are predictable, we don't need to verify each one
+  Future<AvatarData?> _generateAvatarFast(String avatarId) async {
     try {
-      // Iran Liara API URL for generating avatars by ID
       final url = '$_baseUrl/$avatarId';
 
-      final response = await _dio.get(url);
-
-      if (response.statusCode == 200) {
-        return AvatarData(
-          id: avatarId,
-          name: _generateAvatarName(avatarId),
-          imageUrl: url,
-          category: 'avatar',
-          style: 'id-based',
-          seed: avatarId,
-        );
-      } else {
-        return null;
-      }
+      // Return avatar data immediately without verification
+      // The image will be validated when CachedNetworkImage loads it
+      return AvatarData(
+        id: avatarId,
+        name: _generateAvatarName(avatarId),
+        imageUrl: url,
+        category: 'avatar',
+        style: 'id-based',
+        seed: avatarId,
+      );
     } catch (e) {
       return null;
     }
@@ -127,11 +126,9 @@ class AvatarService {
     return 'Avatar #$avatarId';
   }
 
-  /// Predefined avatar collections for quick access
+  /// Predefined avatar collections for quick access (optimized with parallel loading)
   Future<List<AvatarData>> fetchPredefinedAvatars() async {
     try {
-      List<AvatarData> avatars = [];
-
       // Create some predefined avatar IDs (0-100)
       final predefinedIds = [
         '4',
@@ -148,20 +145,20 @@ class AvatarService {
         '26',
         '37',
         '48',
-        '59'
+        '59',
+        '7',
+        '18',
+        '29',
+        '40',
+        '51',
       ];
 
-      for (int i = 0; i < predefinedIds.length; i++) {
-        final avatarId = predefinedIds[i];
-        final avatarData = await fetchAvatarById(
-          avatarId: avatarId,
-        );
-        if (avatarData != null) {
-          avatars.add(avatarData);
-        }
-      }
+      // Fetch all avatars in parallel instead of sequentially (MUCH faster!)
+      final futures = predefinedIds.map((id) => _generateAvatarFast(id));
+      final results = await Future.wait(futures);
 
-      return avatars;
+      // Filter out null results
+      return results.whereType<AvatarData>().toList();
     } catch (e) {
       throw Exception('Failed to fetch predefined avatars: $e');
     }

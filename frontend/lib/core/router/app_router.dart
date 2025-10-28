@@ -16,6 +16,10 @@ import '../../features/trading/presentation/screens/marketplace_screen.dart';
 import '../../features/trading/presentation/screens/trade_detail_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../../features/did/presentation/screens/did_screen.dart';
+import '../../features/admin/presentation/screens/collections_screen.dart';
+import '../../features/animals/presentation/screens/upload_animal_image_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Watch auth state to make router reactive
@@ -62,6 +66,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) =>
                 AnimalDetailScreen(animalId: state.pathParameters['id']!),
           ),
+          GoRoute(
+            path: ':id/upload',
+            builder: (context, state) => UploadAnimalImageScreen(
+              animalId: state.pathParameters['id']!,
+            ),
+          ),
         ],
       ),
 
@@ -84,10 +94,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const WalletScreen(),
       ),
 
+      // DID and Admin
+      GoRoute(
+        path: '/did',
+        builder: (context, state) => const DidScreen(),
+      ),
+      GoRoute(
+        path: '/admin/collections',
+        builder: (context, state) => const CollectionsScreen(),
+      ),
+
       // Profile Routes
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) => const EditProfileScreen(),
       ),
     ],
     redirect: (context, state) {

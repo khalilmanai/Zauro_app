@@ -35,7 +35,8 @@ class ProfileScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              _buildProfileHeader(user?.fullName ?? 'User', user?.email ?? ''),
+              _buildProfileHeader(
+                  user?.fullName ?? 'User', user?.email ?? '', user?.avatarUrl),
               const SizedBox(height: 24),
               _buildProfileStats(),
               const SizedBox(height: 24),
@@ -47,7 +48,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileHeader(String name, String email) {
+  Widget _buildProfileHeader(String name, String email, String? avatarUrl) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -61,14 +62,21 @@ class ProfileScreen extends ConsumerWidget {
           CircleAvatar(
             radius: 40,
             backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : 'U',
-              style: GoogleFonts.poppins(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
-              ),
-            ),
+            backgroundImage: avatarUrl != null
+                ? (avatarUrl.startsWith('http')
+                    ? NetworkImage(avatarUrl)
+                    : null)
+                : null,
+            child: avatarUrl == null
+                ? Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                    style: GoogleFonts.poppins(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(height: 16),
           Text(
@@ -160,7 +168,8 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.person_outline,
             title: 'Edit Profile',
             onTap: () {
-              // TODO: Navigate to edit profile
+              // Navigate to edit profile screen
+              context.push('/profile/edit');
             },
           ),
           _buildDivider(),

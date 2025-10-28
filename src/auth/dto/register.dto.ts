@@ -40,4 +40,13 @@ export class RegisterDto {
   })
   @IsString()
   lastName: string;
+
+  @ApiProperty({
+    example: 'US',
+    description: 'User country code (ISO 3166-1 alpha-2)',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  country?: string;
 }

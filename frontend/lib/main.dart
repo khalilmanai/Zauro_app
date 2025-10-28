@@ -10,6 +10,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/app_colors.dart';
 import 'core/utils/storage_service.dart';
 import 'core/providers/theme_provider.dart';
+import 'core/providers/app_lifecycle_provider.dart';
 import 'core/services/performance_service.dart';
 import 'core/widgets/splash_screen.dart';
 import 'features/auth/data/models/user_model.dart';
@@ -42,7 +43,7 @@ void main() async {
       const SystemUiOverlayStyle(
         statusBarColor: AppColors.transparent,
         statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: AppColors.white,
+        systemNavigationBarColor: AppColors.lightBackground,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
@@ -98,9 +99,12 @@ class ZauroApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeProvider);
 
+    // Initialize app lifecycle manager (auto-loads wallet on login)
+    ref.watch(appLifecycleProvider);
+
     return MaterialApp.router(
       title: AppConfig.appName,
-      debugShowCheckedModeBanner: EnvironmentConfig.showDebugBanner,
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode.themeMode,
@@ -115,7 +119,7 @@ class ZauroApp extends ConsumerWidget {
             context,
           ).copyWith(textScaler: TextScaler.noScaling),
           child: AnimatedSplashScreen(
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 1),
             child: child!,
           ),
         );

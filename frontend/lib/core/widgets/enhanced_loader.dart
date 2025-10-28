@@ -52,8 +52,6 @@ class _ShimmerLoaderState extends State<ShimmerLoader>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return AnimatedBuilder(
       animation: _shimmerAnimation,
       builder: (context, child) {
@@ -61,10 +59,10 @@ class _ShimmerLoaderState extends State<ShimmerLoader>
           shaderCallback: (bounds) {
             return LinearGradient(
               colors: [
-                widget.baseColor ?? Colors.grey.withOpacity(0.1),
+                widget.baseColor ?? Colors.grey.withValues(alpha: 0.1),
                 widget.highlightColor ??
-                    Colors.white.withOpacity(widget.animationStrength),
-                widget.baseColor ?? Colors.grey.withOpacity(0.1),
+                    Colors.white.withValues(alpha: widget.animationStrength),
+                widget.baseColor ?? Colors.grey.withValues(alpha: 0.1),
               ],
               stops: [
                 _shimmerAnimation.value - 0.3,
@@ -179,7 +177,7 @@ class _BouncingLoaderState extends State<BouncingLoader>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: widget.duration,
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
     _bounceAnimation = Tween<double>(
@@ -235,7 +233,7 @@ class ShimmerCard extends StatelessWidget {
         height: height,
         padding: padding ?? const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.3),
+          color: Colors.grey.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(borderRadius),
         ),
         child: Column(
@@ -347,7 +345,8 @@ class _LoadingOverlayState extends State<LoadingOverlay>
                 opacity: _opacityAnimation.value,
                 child: Container(
                   color: widget.isDimmed
-                      ? (widget.overlayColor ?? Colors.black.withOpacity(0.3))
+                      ? (widget.overlayColor ??
+                          Colors.black.withValues(alpha: 0.3))
                       : Colors.transparent,
                   child: Center(
                     child: PremiumLoadingIndicator(

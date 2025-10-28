@@ -42,6 +42,7 @@ class PremiumButton extends StatefulWidget {
   final Duration animationDuration;
   final Curve animationCurve;
   final String? tooltip;
+  final bool enableAnimations;
 
   const PremiumButton({
     super.key,
@@ -64,6 +65,7 @@ class PremiumButton extends StatefulWidget {
     this.animationDuration = AppTheme.fastAnimation,
     this.animationCurve = AppTheme.quickTransition,
     this.tooltip,
+    this.enableAnimations = true,
   });
 
   @override
@@ -73,35 +75,19 @@ class PremiumButton extends StatefulWidget {
 class _PremiumButtonState extends State<PremiumButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _glowAnimation;
-
   bool _isPressed = false;
-  bool _isHovered = false;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: widget.animationDuration,
+      duration: const Duration(milliseconds: 150),
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.animationCurve,
-    ));
-
-    _glowAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.animationCurve,
-    ));
+    _animationController.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
@@ -143,9 +129,7 @@ class _PremiumButtonState extends State<PremiumButton>
   }
 
   void _handleHover(bool isHovered) {
-    setState(() {
-      _isHovered = isHovered;
-    });
+    // Hover state handling removed
   }
 
   @override
@@ -174,9 +158,9 @@ class _PremiumButtonState extends State<PremiumButton>
           ),
         ),
       ),
-    ).animate(target: _isPressed ? 1 : 0).scaleXY(
+    ).animate(target: widget.enableAnimations && _isPressed ? 1 : 0).scaleXY(
           begin: 1.0,
-          end: 0.95,
+          end: 0.98,
         );
 
     Widget result = MouseRegion(
@@ -225,8 +209,8 @@ class _PremiumButtonState extends State<PremiumButton>
         break;
 
       case ButtonVariant.ghost:
-        backgroundColor = widget.backgroundColor?.withOpacity(0.1) ??
-            AppTheme.getPrimaryColor(context).withOpacity(0.1);
+        backgroundColor = widget.backgroundColor?.withValues(alpha: 0.1) ??
+            AppTheme.getPrimaryColor(context).withValues(alpha: 0.1);
         foregroundColor =
             widget.foregroundColor ?? AppTheme.getPrimaryColor(context);
         break;
@@ -321,12 +305,12 @@ class _PremiumButtonState extends State<PremiumButton>
       decoration = decoration.copyWith(
         gradient: LinearGradient(
           colors: [
-            AppColors.white.withOpacity(0.2),
-            AppColors.white.withOpacity(0.1),
+            AppColors.white.withValues(alpha: 0.2),
+            AppColors.white.withValues(alpha: 0.1),
           ],
         ),
         border: Border.all(
-          color: AppColors.white.withOpacity(0.2),
+          color: AppColors.white.withValues(alpha: 0.2),
           width: 1,
         ),
       );
