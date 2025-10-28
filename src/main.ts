@@ -8,8 +8,28 @@ async function bootstrap() {
 
 
 // Enable CORS
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
+  'http://localhost:3002',
+];
+
 app.enableCors({
-  origin: 'http://localhost:3002',
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow Railway and Vercel domains in production
+    if (process.env.NODE_ENV === 'production' && 
+        (origin.endsWith('.railway.app') || origin.endsWith('.vercel.app'))) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 });
 

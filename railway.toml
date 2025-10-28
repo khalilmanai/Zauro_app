@@ -4,8 +4,8 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile.production"
 
 [deploy]
-startCommand = "node dist/main.js"
-healthcheckPath = "/api/v1/health"
+startCommand = "node --max-old-space-size=384 dist/main.js"
+healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "always"
 
