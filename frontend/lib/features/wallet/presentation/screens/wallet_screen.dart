@@ -59,33 +59,38 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
       backgroundColor: theme.scaffoldBackgroundColor,
       body: LoadingOverlay(
         isLoading: isLoading,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            _WalletAppBar(
-              balanceState: balanceState,
-              isTablet: isTablet,
+        child: RefreshIndicator(
+          onRefresh: _refreshWallet,
+          color: theme.colorScheme.primary,
+          strokeWidth: 2.0,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
             ),
-            SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: _WalletContent(
-                  walletState: walletState,
-                  balanceState: balanceState,
-                  didState: didState,
-                  isTablet: isTablet,
-                  onRefresh: _refreshWallet,
-                  onShowFundDialog: _showFundDialog,
-                  onShowSendDialog: _showEnhancedSendDialog,
-                  onShowReceiveDialog: _showReceiveDialog,
-                  onShowNFTMarketplace: _showNFTMarketplace,
-                  onShowTransactionHistory: _showTransactionHistory,
+            slivers: [
+              _WalletAppBar(
+                balanceState: balanceState,
+                isTablet: isTablet,
+              ),
+              SliverToBoxAdapter(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: _WalletContent(
+                    walletState: walletState,
+                    balanceState: balanceState,
+                    didState: didState,
+                    isTablet: isTablet,
+                    onRefresh: _refreshWallet,
+                    onShowFundDialog: _showFundDialog,
+                    onShowSendDialog: _showEnhancedSendDialog,
+                    onShowReceiveDialog: _showReceiveDialog,
+                    onShowNFTMarketplace: _showNFTMarketplace,
+                    onShowTransactionHistory: _showTransactionHistory,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -712,45 +717,52 @@ class _QuickActions extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _ActionItem(
-              label: 'Fund',
-              icon: Icons.add_circle_outline_rounded,
-              color: AppTheme.success,
-              onTap: onShowFundDialog,
-              isTablet: isTablet,
-            ),
-            _ActionItem(
-              label: 'Send',
-              icon: Icons.arrow_upward_rounded,
-              color: AppTheme.warning,
-              onTap: onShowSendDialog,
-              isTablet: isTablet,
-            ),
-            _ActionItem(
-              label: 'Receive',
-              icon: Icons.arrow_downward_rounded,
-              color: AppTheme.info,
-              onTap: onShowReceiveDialog,
-              isTablet: isTablet,
-            ),
-            _ActionItem(
-              label: 'Trade',
-              icon: Icons.swap_horiz_rounded,
-              color: AppTheme.primaryColor,
-              onTap: onShowNFTMarketplace,
-              isTablet: isTablet,
-            ),
-            _ActionItem(
-              label: 'History',
-              icon: Icons.receipt_long_rounded,
-              color: AppTheme.primaryColor,
-              onTap: onShowTransactionHistory,
-              isTablet: isTablet,
-            ),
-          ],
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              _ActionItem(
+                label: 'Fund',
+                icon: Icons.add_circle_outline_rounded,
+                color: AppTheme.success,
+                onTap: onShowFundDialog,
+                isTablet: isTablet,
+              ),
+              SizedBox(width: isTablet ? 12 : 10),
+              _ActionItem(
+                label: 'Send',
+                icon: Icons.arrow_upward_rounded,
+                color: AppTheme.warning,
+                onTap: onShowSendDialog,
+                isTablet: isTablet,
+              ),
+              SizedBox(width: isTablet ? 12 : 10),
+              _ActionItem(
+                label: 'Receive',
+                icon: Icons.arrow_downward_rounded,
+                color: AppTheme.info,
+                onTap: onShowReceiveDialog,
+                isTablet: isTablet,
+              ),
+              SizedBox(width: isTablet ? 12 : 10),
+              _ActionItem(
+                label: 'Trade',
+                icon: Icons.swap_horiz_rounded,
+                color: AppTheme.primaryColor,
+                onTap: onShowNFTMarketplace,
+                isTablet: isTablet,
+              ),
+              SizedBox(width: isTablet ? 12 : 10),
+              _ActionItem(
+                label: 'History',
+                icon: Icons.receipt_long_rounded,
+                color: AppTheme.primaryColor,
+                onTap: onShowTransactionHistory,
+                isTablet: isTablet,
+              ),
+            ],
+          ),
         ),
       ),
     );

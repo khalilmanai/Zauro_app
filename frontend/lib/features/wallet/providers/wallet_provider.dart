@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/wallet_models.dart';
 import '../data/repositories/wallet_repository.dart';
-import '../../../../core/network/api_client.dart';
+import '../../../core/network/api_client.dart';
 
 // Wallet State Provider
 final walletProvider =

@@ -32,10 +32,12 @@ void main() async {
     // Initialize Performance Service
     PerformanceService().initialize();
 
-    // Set preferred orientations
+    // Set preferred orientations - allow landscape for tablets and desktops
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
     ]);
 
     // Set system UI overlay style
@@ -115,9 +117,26 @@ class ZauroApp extends ConsumerWidget {
         PerformanceService.preloadCriticalResources(context);
 
         return MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.noScaling),
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.noScaling,
+            // Ensure proper viewport handling for all screen sizes
+            size: MediaQuery.of(context).size,
+            padding: MediaQuery.of(context).padding,
+            viewInsets: MediaQuery.of(context).viewInsets,
+            viewPadding: MediaQuery.of(context).viewPadding,
+            devicePixelRatio: MediaQuery.of(context).devicePixelRatio,
+            platformBrightness: MediaQuery.of(context).platformBrightness,
+            systemGestureInsets: MediaQuery.of(context).systemGestureInsets,
+            alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+            accessibleNavigation: MediaQuery.of(context).accessibleNavigation,
+            invertColors: MediaQuery.of(context).invertColors,
+            highContrast: MediaQuery.of(context).highContrast,
+            disableAnimations: MediaQuery.of(context).disableAnimations,
+            boldText: MediaQuery.of(context).boldText,
+            navigationMode: MediaQuery.of(context).navigationMode,
+            gestureSettings: MediaQuery.of(context).gestureSettings,
+            displayFeatures: MediaQuery.of(context).displayFeatures,
+          ),
           child: AnimatedSplashScreen(
             duration: const Duration(seconds: 1),
             child: child!,

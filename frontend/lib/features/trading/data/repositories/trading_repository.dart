@@ -118,8 +118,9 @@ class TradingRepository {
   /// Get available trades (marketplace)
   Future<List<Trade>> getAvailableTrades() async {
     try {
-      final response = await getTrades(status: 'ACTIVE');
-      return response.data;
+      final response = await getTrades();
+      // Filter for ACTIVE trades client-side since API doesn't support status filtering
+      return response.data.where((trade) => trade.status == 'ACTIVE').toList();
     } catch (e) {
       if (e is ServerFailure) rethrow;
       throw ServerFailure(message: 'Failed to get available trades: $e');

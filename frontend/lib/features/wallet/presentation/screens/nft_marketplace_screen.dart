@@ -24,6 +24,9 @@ class NftMarketplaceScreen extends ConsumerStatefulWidget {
 class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _activeFilter = 'All';
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -107,31 +111,59 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
       color: AppTheme.primaryColor,
       child: marketplaceState.when(
         data: (trades) {
-          if (trades.isEmpty) {
+          // Apply simple client-side search/filter
+          final filtered = trades.where((t) {
+            if (_activeFilter != 'All' &&
+                (t.status).toUpperCase() != _activeFilter.toUpperCase()) {
+              return false;
+            }
+            if (_searchQuery.isEmpty) return true;
+            final q = _searchQuery.toLowerCase();
+            final name = (t.animal?.name ?? '').toLowerCase();
+            final species = (t.animal?.species ?? '').toLowerCase();
+            final breed = (t.animal?.breed ?? '').toLowerCase();
+            return name.contains(q) || species.contains(q) || breed.contains(q);
+          }).toList();
+
+          if (filtered.isEmpty) {
             return _buildEmptyState(
               'No NFTs Listed',
               'Check back later for available NFTs',
               isTablet,
             );
           }
-          return GridView.builder(
-            padding: EdgeInsets.all(isTablet ? 24 : 16),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isTablet ? 3 : 2,
-              childAspectRatio: 0.75,
-              crossAxisSpacing: isTablet ? 16 : 12,
-              mainAxisSpacing: isTablet ? 16 : 12,
-            ),
-            itemCount: trades.length,
-            itemBuilder: (context, index) {
-              final trade = trades[index];
-              return _buildNFTCard(trade, isTablet, forSale: true);
-            },
+          final width = MediaQuery.of(context).size.width;
+          final crossAxisCount = width >= 1024 ? 4 : (isTablet ? 3 : 2);
+          final spacing = width >= 1024 ? 18.0 : (isTablet ? 16.0 : 12.0);
+
+          return Column(
+            children: [
+              _buildMarketplaceHeader(isTablet),
+              Expanded(
+                child: GridView.builder(
+                  padding: EdgeInsets.fromLTRB(
+                    isTablet ? 24 : 16,
+                    0,
+                    isTablet ? 24 : 16,
+                    isTablet ? 24 : 16,
+                  ),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                  ),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final trade = filtered[index];
+                    return _buildNFTCard(trade, isTablet, forSale: true);
+                  },
+                ),
+              ),
+            ],
           );
         },
-        loading: () => Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
-        ),
+        loading: () => _buildLoadingGrid(isTablet),
         error: (error, stack) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -228,6 +260,7 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
   }
 
   Widget _buildNFTCard(Trade trade, bool isTablet, {bool forSale = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = AppTheme.getCardBackground(context);
     final borderColor = AppTheme.getBorderColorFromContext(context);
 
@@ -237,56 +270,135 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
       child: Container(
         decoration: BoxDecoration(
           color: cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.25 : 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // NFT Image
             Expanded(
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-                child: CachedNetworkImage(
-                  imageUrl: trade.animal?.imageUrl ?? '',
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (context, url) => Container(
-                    color: AppTheme.grey100,
-                    child: const Center(
-                      child: CircularProgressIndicator(),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: CachedNetworkImage(
+                      imageUrl: trade.animal?.imageUrl ?? '',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (context, url) => Container(
+                        color: AppTheme.grey100,
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: AppTheme.grey100,
+                        child: Icon(
+                          Icons.image_not_supported,
+                          size: isTablet ? 48 : 40,
+                          color: AppTheme.getMutedTextColor(context),
+                        ),
+                      ),
                     ),
                   ),
-                  errorWidget: (context, url, error) => Container(
-                    color: AppTheme.grey100,
-                    child: Icon(
-                      Icons.image_not_supported,
-                      size: isTablet ? 48 : 40,
-                      color: AppTheme.getMutedTextColor(context),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 90,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.45),
+                            Colors.black.withOpacity(0.25),
+                            Colors.transparent,
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(trade.status),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        (trade.status).toUpperCase(),
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
             // NFT Info
             Padding(
-              padding: EdgeInsets.all(isTablet ? 12 : 10),
+              padding: EdgeInsets.all(isTablet ? 14 : 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     trade.animal?.name ?? 'Unnamed',
                     style: GoogleFonts.poppins(
-                      fontSize: isTablet ? 15 : 14,
-                      fontWeight: FontWeight.w600,
+                      fontSize: isTablet ? 16 : 15,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.getTextColor(context),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: isTablet ? 6 : 4),
+                  SizedBox(height: isTablet ? 8 : 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.pets_rounded,
+                        size: isTablet ? 14 : 12,
+                        color: AppTheme.getMutedTextColor(context),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${trade.animal?.species ?? 'Unknown'} • ${trade.animal?.breed ?? 'Mixed'}',
+                          style: GoogleFonts.poppins(
+                            fontSize: isTablet ? 12 : 11,
+                            color: AppTheme.getMutedTextColor(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isTablet ? 10 : 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -294,19 +406,27 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
                         child: Text(
                           '${trade.price} ${trade.currency}',
                           style: GoogleFonts.poppins(
-                            fontSize: isTablet ? 14 : 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.primaryColor,
+                            fontSize: isTablet ? 16 : 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.getPrimaryColor(context),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (forSale)
-                        Icon(
-                          Icons.shopping_cart_outlined,
-                          size: isTablet ? 18 : 16,
-                          color: AppTheme.success,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.getPrimaryColor(context)
+                                .withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.shopping_cart_rounded,
+                            size: isTablet ? 18 : 16,
+                            color: AppTheme.getPrimaryColor(context),
+                          ),
                         ),
                     ],
                   ),
@@ -429,27 +549,40 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.collections_outlined,
-            size: isTablet ? 80 : 64,
-            color: AppTheme.getMutedTextColor(context).withOpacity(0.3),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.getPrimaryColor(context).withOpacity(0.12),
+                  AppTheme.getPrimaryColor(context).withOpacity(0.06),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.collections_bookmark_rounded,
+              size: isTablet ? 72 : 60,
+              color: AppTheme.getPrimaryColor(context),
+            ),
           ),
           SizedBox(height: isTablet ? 24 : 16),
           Text(
             title,
             style: GoogleFonts.poppins(
-              fontSize: isTablet ? 18 : 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.getMutedTextColor(context),
+              fontSize: isTablet ? 20 : 18,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.getTextColor(context),
+              letterSpacing: -0.3,
             ),
           ),
-          SizedBox(height: isTablet ? 12 : 8),
+          SizedBox(height: isTablet ? 10 : 8),
           Text(
             subtitle,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: isTablet ? 14 : 13,
-              color: AppTheme.getMutedTextColor(context).withOpacity(0.7),
+              color: AppTheme.getMutedTextColor(context),
             ),
           ),
         ],
@@ -604,6 +737,223 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
           ref.read(marketplaceProvider.notifier).refresh();
         },
       ),
+    );
+  }
+}
+
+// UI helpers
+extension on _NftMarketplaceScreenState {
+  Color _getStatusColor(String? status) {
+    switch ((status ?? '').toLowerCase()) {
+      case 'listed':
+        return const Color(0xFF10B981);
+      case 'sold':
+        return const Color(0xFF64748B);
+      case 'pending':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  Widget _buildMarketplaceHeader(bool isTablet) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(isTablet ? 24 : 16, isTablet ? 20 : 16,
+          isTablet ? 24 : 16, isTablet ? 16 : 12),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(
+          bottom: BorderSide(
+              color: AppTheme.getBorderColorFromContext(context), width: 1),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (v) =>
+                      this.setState(() => _searchQuery = v.trim()),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    hintText: 'Search NFTs, species, breed... ',
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                          color: AppTheme.getBorderColorFromContext(context)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                          color: AppTheme.getBorderColorFromContext(context)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide:
+                          BorderSide(color: AppTheme.getPrimaryColor(context)),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: isTablet ? 16 : 12),
+              IconButton(
+                onPressed: () {
+                  _showFiltersSheet();
+                },
+                icon: const Icon(Icons.tune_rounded),
+                style: IconButton.styleFrom(
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final label in ['All', 'Listed', 'Sold', 'Pending'])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(label),
+                      selected: _activeFilter == label,
+                      onSelected: (_) =>
+                          this.setState(() => _activeFilter = label),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingGrid(bool isTablet) {
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width >= 1024 ? 4 : (isTablet ? 3 : 2);
+    final spacing = width >= 1024 ? 18.0 : (isTablet ? 16.0 : 12.0);
+
+    return Column(
+      children: [
+        _buildMarketplaceHeader(isTablet),
+        Expanded(
+          child: GridView.builder(
+            padding: EdgeInsets.fromLTRB(
+              isTablet ? 24 : 16,
+              0,
+              isTablet ? 24 : 16,
+              isTablet ? 24 : 16,
+            ),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+            ),
+            itemCount: crossAxisCount * 4,
+            itemBuilder: (context, index) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.getCardBackground(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: AppTheme.getBorderColorFromContext(context)),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16)),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      height: 72,
+                      padding: const EdgeInsets.all(12),
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        height: 10,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showFiltersSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Filters',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final label in ['All', 'Listed', 'Sold', 'Pending'])
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: _activeFilter == label,
+                        onSelected: (_) {
+                          this.setState(() => _activeFilter = label);
+                          Navigator.pop(context);
+                        },
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
