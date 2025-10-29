@@ -46,8 +46,8 @@ export class AnimalsController {
   @Get()
   @ApiOperation({ summary: 'Get all animals with pagination' })
   @ApiResponse({ status: 200, description: 'Animals retrieved successfully' })
-  async findAll(@Query() paginationDto: PaginationDto, @Query('ownerId') ownerId?: string) {
-    const result = await this.animalsService.findAll(paginationDto, ownerId);
+  async findAll(@Query() paginationDto: PaginationDto) {
+    const result = await this.animalsService.findAll(paginationDto);
     return {
       success: true,
       message: 'Animals retrieved successfully',
