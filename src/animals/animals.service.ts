@@ -317,7 +317,7 @@ export class AnimalsService {
     };
   }
 
-  async findAll(paginationDto: PaginationDto, ownerId?: string): Promise<{
+  async findAll(paginationDto: PaginationDto): Promise<{
     animals: AnimalResponseDto[];
     total: number;
     page: number;
@@ -327,11 +327,10 @@ export class AnimalsService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const where = ownerId ? { ownerId } : {};
+
 
     const [animals, total] = await Promise.all([
       this.prisma.animal.findMany({
-        where,
         skip,
         take: limit,
         include: {
@@ -346,7 +345,7 @@ export class AnimalsService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.animal.count({ where }),
+      this.prisma.animal.count(),
     ]);
 
     return {

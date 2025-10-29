@@ -12,9 +12,10 @@ import {
   UseInterceptors,
   UploadedFile,
   Put,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { AnimalsService } from './animals.service';
 import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
@@ -45,8 +46,8 @@ export class AnimalsController {
   @Get()
   @ApiOperation({ summary: 'Get all animals with pagination' })
   @ApiResponse({ status: 200, description: 'Animals retrieved successfully' })
-  async findAll(@Query() paginationDto: PaginationDto, @Query('ownerId') ownerId?: string) {
-    const result = await this.animalsService.findAll(paginationDto, ownerId);
+  async findAll(@Query() paginationDto: PaginationDto) {
+    const result = await this.animalsService.findAll(paginationDto);
     return {
       success: true,
       message: 'Animals retrieved successfully',
@@ -107,11 +108,29 @@ export class AnimalsController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Review an animal (approve/reject) - Admin/Manager only' })
   @ApiResponse({ status: 200, description: 'Animal reviewed successfully', type: AnimalResponseDto })
+  @ApiBody({
+    description: 'Review decision',
+    schema: {
+      type: 'object',
+      required: ['approved'],
+      properties: {
+        approved: { type: 'boolean' },
+        comment: { type: 'string' },
+      },
+    },
+    examples: {
+      approve: { value: { approved: true, comment: 'Looks good' } },
+      reject: { value: { approved: false, comment: 'Missing records' } },
+    },
+  })
   async reviewAnimal(
     @Param('id') id: string,
     @Request() req: any,
     @Body() reviewDto: { approved: boolean; comment?: string },
   ): Promise<AnimalResponseDto> {
+    if (!reviewDto || typeof reviewDto.approved !== 'boolean') {
+      throw new BadRequestException('Request body must include boolean "approved". Optional "comment" may be provided.');
+    }
     return this.animalsService.reviewAnimal(id, req.user.id, reviewDto.approved, reviewDto.comment);
   }
 
