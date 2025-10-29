@@ -357,6 +357,46 @@ export class AnimalsService {
     };
   }
 
+  async findAllByOwnerId(paginationDto: PaginationDto, ownerId: string): Promise<{
+    animals: AnimalResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+
+    const [animals, total] = await Promise.all([
+      this.prisma.animal.findMany({
+        where: { ownerId },
+        skip,
+        take: limit,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.animal.count({ where: { ownerId } }),
+    ]);
+
+    return {
+      animals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findOne(id: string): Promise<AnimalResponseDto> {
     const animal = await this.prisma.animal.findUnique({
       where: { id },
