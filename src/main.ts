@@ -12,8 +12,11 @@ const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
   'http://localhost:3002',
 ];
 
+// In production, allow all origins for Swagger UI and API testing
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.enableCors({
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  origin: isProduction ? true : (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
     
@@ -22,9 +25,8 @@ app.enableCors({
       return callback(null, true);
     }
     
-    // Allow Railway and Vercel domains in production
-    if (process.env.NODE_ENV === 'production' && 
-        (origin.endsWith('.railway.app') || origin.endsWith('.vercel.app'))) {
+    // Allow Railway and Vercel domains
+    if (origin.includes('.railway.app') || origin.includes('.vercel.app')) {
       return callback(null, true);
     }
     
