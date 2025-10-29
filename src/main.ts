@@ -8,10 +8,32 @@ async function bootstrap() {
 
 
 // Enable CORS
-  app.enableCors({
-    origin: ['http://localhost:3000'],
-    credentials: true,
-  });
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
+  'http://localhost:3002',
+];
+
+// In production, allow all origins for Swagger UI and API testing
+const isProduction = process.env.NODE_ENV === 'production';
+
+app.enableCors({
+  origin: isProduction ? true : (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow Railway and Vercel domains
+    if (origin.includes('.railway.app') || origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+});
 
   // Set global API prefix
   app.setGlobalPrefix('api/v1');
@@ -39,8 +61,8 @@ async function bootstrap() {
       },
       'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controller!
     )
-    .addServer('http://localhost:3000', 'Development server')
-    .addServer('https://api.zauro.com', 'Production server')
+    .addServer('http://localhost:3000', 'Development server')  
+    .addServer('/', 'Production server')
     .addTag('Authentication', 'User authentication and authorization endpoints')
     .addTag('Wallet', 'Hedera wallet management and HBAR transfers')
     .addTag('Animals', 'Animal NFT management and marketplace listings')

@@ -4,7 +4,8 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile.production"
 
 [deploy]
-startCommand = "node dist/main.js"
+# Don't override startCommand - let Dockerfile handle entrypoint
+# startCommand is now in Dockerfile.production CMD
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 300
 restartPolicyType = "always"

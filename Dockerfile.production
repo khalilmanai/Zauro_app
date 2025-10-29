@@ -7,35 +7,76 @@ RUN apk add --no-cache libc6-compat python3 make g++ openssl curl
 
 # ---------- Builder Stage ----------
 FROM base AS builder
+WORKDIR /app
+
+# Copy package files first (for better layer caching)
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
-COPY . ./
+COPY prisma ./prisma/
+
+# Install ALL dependencies (including dev for build)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Generate Prisma client
 RUN npx prisma generate
+
+# Build the application
 RUN npm run build
+
+# Verify build output
+RUN echo "=== Build Output Verification ===" && \
+    ls -la dist/ && \
+    echo "Looking for main.js:" && \
+    find dist -name "main.js" -type f && \
+    echo "Verifying dist/src/main.js exists..." && \
+    test -f dist/src/main.js && echo "✓ dist/src/main.js found" || echo "✗ dist/src/main.js not found"
 
 # ---------- Production Stage ----------
 FROM base AS production
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nestjs -u 1001
-
 # Copy package files
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
 
-# Copy built application
-COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
+# Install ONLY production dependencies
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copy Prisma files and schema
+COPY prisma ./prisma/
+
+# Copy built application from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy Prisma generated client from builder stage
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Note: @prisma/client should already be installed by npm ci above
+# If not, we'll run prisma generate to create it
+RUN if [ ! -d "node_modules/.prisma/client" ]; then \
+    echo "Regenerating Prisma client..."; \
+    npx prisma generate; \
+  else \
+    echo "✓ Prisma client found"; \
+  fi
 
 # Copy entrypoint script
-COPY --chown=nestjs:nodejs docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+# Fix line endings (convert CRLF to LF for Unix compatibility)
+RUN apk add --no-cache dos2unix && \
+    dos2unix ./docker-entrypoint.sh || \
+    sed -i.bak 's/\r$//' ./docker-entrypoint.sh || true && \
+    chmod +x ./docker-entrypoint.sh && \
+    rm -f ./docker-entrypoint.sh.bak
 
-# Switch to non-root user
-USER nestjs
+# Verify files exist
+RUN echo "=== Production Build Verification ===" && \
+    ls -la dist/ && \
+    echo "Verifying main.js in dist/src/:" && \
+    test -f dist/src/main.js && echo "✓ dist/src/main.js found" || echo "✗ dist/src/main.js not found" && \
+    test -d "node_modules/.prisma/client" && echo "✓ Prisma client exists" || echo "✗ Prisma client not found"
 
 # Expose port
 EXPOSE 3000
@@ -44,6 +85,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
   CMD curl -f http://localhost:3000/api/v1/health || exit 1
 
-# Start application
+# Start application with memory optimization for free tier
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["node", "dist/main.js"]
+CMD ["node", "--max-old-space-size=384", "dist/src/main.js"]
