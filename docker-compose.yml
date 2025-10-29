@@ -33,7 +33,7 @@ services:
       db:
         condition: service_healthy
     # Let the image ENTRYPOINT handle Prisma and start the app
-    command: ["node", "dist/main.js"]
+    command: ["node", "--max-old-space-size=384", "dist/src/main.js"]
     # For local dev with hot reload, you can mount and run start:dev
     # volumes:
     #   - .:/app
