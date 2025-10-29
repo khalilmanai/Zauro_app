@@ -9,7 +9,7 @@ async function bootstrap() {
 
 // Enable CORS
 const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
-  'http://localhost:3002',
+  'http://localhost:3000',
 ];
 
 // In production, allow all origins for Swagger UI and API testing
