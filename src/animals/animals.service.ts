@@ -317,7 +317,16 @@ export class AnimalsService {
     };
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{
+  async findAll(
+    paginationDto: PaginationDto,
+    filters?: {
+      minAge?: number;
+      maxAge?: number;
+      sex?: 'MALE' | 'FEMALE';
+      minPrice?: number;
+      maxPrice?: number;
+    },
+  ): Promise<{
     animals: AnimalResponseDto[];
     total: number;
     page: number;
@@ -327,10 +336,27 @@ export class AnimalsService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
+    const where: any = {};
 
+    if (filters?.sex) {
+      where.sex = filters.sex;
+    }
+
+    if (filters?.minAge !== undefined || filters?.maxAge !== undefined) {
+      where.age = {};
+      if (filters.minAge !== undefined) where.age.gte = filters.minAge;
+      if (filters.maxAge !== undefined) where.age.lte = filters.maxAge;
+    }
+
+    if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+      where.aiPredictionValue = {};
+      if (filters.minPrice !== undefined) where.aiPredictionValue.gte = filters.minPrice;
+      if (filters.maxPrice !== undefined) where.aiPredictionValue.lte = filters.maxPrice;
+    }
 
     const [animals, total] = await Promise.all([
       this.prisma.animal.findMany({
+        where,
         skip,
         take: limit,
         include: {
@@ -345,7 +371,7 @@ export class AnimalsService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.animal.count(),
+      this.prisma.animal.count({ where }),
     ]);
 
     return {
@@ -357,7 +383,17 @@ export class AnimalsService {
     };
   }
 
-  async findAllByOwnerId(paginationDto: PaginationDto, ownerId: string): Promise<{
+  async findAllByOwnerId(
+    paginationDto: PaginationDto,
+    ownerId: string,
+    filters?: {
+      minAge?: number;
+      maxAge?: number;
+      sex?: 'MALE' | 'FEMALE';
+      minPrice?: number;
+      maxPrice?: number;
+    },
+  ): Promise<{
     animals: AnimalResponseDto[];
     total: number;
     page: number;
@@ -367,10 +403,27 @@ export class AnimalsService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
+    const where: any = { ownerId };
+
+    if (filters?.sex) {
+      where.sex = filters.sex;
+    }
+
+    if (filters?.minAge !== undefined || filters?.maxAge !== undefined) {
+      where.age = {};
+      if (filters.minAge !== undefined) where.age.gte = filters.minAge;
+      if (filters.maxAge !== undefined) where.age.lte = filters.maxAge;
+    }
+
+    if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+      where.aiPredictionValue = {};
+      if (filters.minPrice !== undefined) where.aiPredictionValue.gte = filters.minPrice;
+      if (filters.maxPrice !== undefined) where.aiPredictionValue.lte = filters.maxPrice;
+    }
 
     const [animals, total] = await Promise.all([
       this.prisma.animal.findMany({
-        where: { ownerId },
+        where,
         skip,
         take: limit,
         include: {
@@ -385,7 +438,7 @@ export class AnimalsService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.animal.count({ where: { ownerId } }),
+      this.prisma.animal.count({ where }),
     ]);
 
     return {
