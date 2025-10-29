@@ -61,11 +61,8 @@ app.enableCors({
       },
       'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controller!
     )
-    .addServer('http://localhost:3000', 'Development server')
-    .addServer(
-      process.env.RAILWAY_PUBLIC_DOMAIN || process.env.VERCEL_URL || 'https://zauroapp-backend-production.up.railway.app',
-      'Production server'
-    )
+    .addServer('http://localhost:3000', 'Development server')  
+    .addServer('/', 'Production server')
     .addTag('Authentication', 'User authentication and authorization endpoints')
     .addTag('Wallet', 'Hedera wallet management and HBAR transfers')
     .addTag('Animals', 'Animal NFT management and marketplace listings')
