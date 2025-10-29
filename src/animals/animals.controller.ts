@@ -61,6 +61,27 @@ export class AnimalsController {
     };
   }
 
+  @Get('my')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get my animals with pagination' })
+  @ApiResponse({ status: 200, description: 'User animals retrieved successfully' })
+  async findMine(@Query() paginationDto: PaginationDto, @Request() req: any) {
+    const result = await this.animalsService.findAll(paginationDto, req.user.id);
+    return {
+      success: true,
+      message: 'User animals retrieved successfully',
+      data: result.animals,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   @Get('pending-review')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
