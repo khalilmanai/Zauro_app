@@ -62,6 +62,44 @@ export class AnimalsController {
     };
   }
 
+  @Get('listed')
+  @ApiOperation({ summary: 'Get all listed animals with pagination' })
+  @ApiResponse({ status: 200, description: 'Listed animals retrieved successfully' })
+  async getAllListed(@Query() paginationDto: PaginationDto) {
+    const result = await this.animalsService.findAllListed(paginationDto);
+    return {
+      success: true,
+      message: 'Listed animals retrieved successfully',
+      data: result.animals,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('unlisted')
+  @ApiOperation({ summary: 'Get all unlisted animals with pagination' })
+  @ApiResponse({ status: 200, description: 'Unlisted animals retrieved successfully' })
+  async getAllUnlisted(@Query() paginationDto: PaginationDto) {
+    const result = await this.animalsService.findAllUnlisted(paginationDto);
+    return {
+      success: true,
+      message: 'Unlisted animals retrieved successfully',
+      data: result.animals,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   @Get('my')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

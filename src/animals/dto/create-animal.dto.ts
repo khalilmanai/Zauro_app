@@ -1,7 +1,7 @@
 import { IsString, IsEnum, IsOptional, IsInt, IsNumber, Min, Max } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { AnimalSpecies, AnimalGender } from '@prisma/client';
+import { AnimalSpecies, AnimalGender, AnimalStatus } from '@prisma/client';
 
 export class CreateAnimalDto {
   @ApiProperty({
@@ -70,4 +70,21 @@ export class CreateAnimalDto {
   @Transform(({ value }: { value: any }) => parseFloat(value))
   @IsNumber()
   aiPredictionValue?: number;
+
+  @ApiProperty({
+    example: true,
+    description: 'Whether the animal is listed for sale (optional)',
+    required: false
+  })
+  @IsOptional()
+  isListed?: boolean;
+
+ @ApiProperty({
+    example: 'EXPERT_APPROVED',
+    description: 'Status of the animal after expert review',
+    enum: AnimalStatus,
+    enumName: 'AnimalStatus'
+  })
+  @IsEnum(AnimalStatus)
+  status: AnimalStatus;
 }

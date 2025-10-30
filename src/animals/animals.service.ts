@@ -383,6 +383,92 @@ export class AnimalsService {
     };
   }
 
+  async findAllListed(
+    paginationDto: PaginationDto,
+  ): Promise<{
+    animals: AnimalResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const where = { isListed: true } as const;
+
+    const [animals, total] = await Promise.all([
+      this.prisma.animal.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.animal.count({ where }),
+    ]);
+
+    return {
+      animals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findAllUnlisted(
+    paginationDto: PaginationDto,
+  ): Promise<{
+    animals: AnimalResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const where = { isListed: false } as const;
+
+    const [animals, total] = await Promise.all([
+      this.prisma.animal.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.animal.count({ where }),
+    ]);
+
+    return {
+      animals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findAllByOwnerId(
     paginationDto: PaginationDto,
     ownerId: string,
