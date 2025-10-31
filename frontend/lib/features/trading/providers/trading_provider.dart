@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/trade_models.dart';
 import '../data/repositories/trading_repository.dart';
+import '../../animals/data/models/animal_models.dart';
+import '../../animals/data/repositories/animals_repository.dart';
 
 // Trading State Provider
 final tradesProvider =
@@ -32,10 +34,10 @@ final myPurchasesProvider =
   return MyPurchasesNotifier(repository);
 });
 
-// Marketplace Provider (available trades)
+// Marketplace Provider (available animals)
 final marketplaceProvider =
-    StateNotifierProvider<MarketplaceNotifier, AsyncValue<List<Trade>>>((ref) {
-  final repository = ref.watch(tradingRepositoryProvider);
+    StateNotifierProvider<MarketplaceNotifier, AsyncValue<List<Animal>>>((ref) {
+  final repository = ref.watch(animalsRepositoryProvider);
   return MarketplaceNotifier(repository);
 });
 
@@ -243,19 +245,25 @@ class MyPurchasesNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
   }
 }
 
-class MarketplaceNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
-  final TradingRepository _repository;
+class MarketplaceNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
+  final AnimalsRepository _repository;
 
   MarketplaceNotifier(this._repository) : super(const AsyncValue.data([]));
 
-  /// Get available trades (marketplace)
-  Future<void> getAvailableTrades() async {
+  /// Get available animals (marketplace) - uses /api/v1/animals endpoint
+  Future<void> getAvailableTrades({int page = 1, int limit = 10}) async {
     state = const AsyncValue.loading();
     try {
-      final trades = await _repository.getAvailableTrades();
+      final response = await _repository.getAnimals(page: page, limit: limit);
+      // Filter to only show listed animals (animals that are available for trade)
+      final availableAnimals = response.data.where((animal) => 
+        animal.isListed || 
+        animal.reviewStatus == AnimalStatus.expertApproved ||
+        animal.reviewStatus == AnimalStatus.listed
+      ).toList();
       // ignore: avoid_print
-      print('✅ marketplaceProvider.getAvailableTrades -> ${trades.length}');
-      state = AsyncValue.data(trades);
+      print('✅ marketplaceProvider.getAvailableTrades -> ${availableAnimals.length} animals');
+      state = AsyncValue.data(availableAnimals);
     } catch (error, stackTrace) {
       // ignore: avoid_print
       print('❌ marketplaceProvider.getAvailableTrades error: $error');
@@ -272,12 +280,22 @@ class MarketplaceNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
 
     state = const AsyncValue.loading();
     try {
-      final trades = await _repository.searchTrades(query, species: species);
-      // Server already filters by status=LISTED,ACTIVE; keep extra safety filter
-      final availableTrades = trades
-          .where((trade) => trade.status == 'ACTIVE' || trade.status == 'LISTED' || trade.isActive)
-          .toList();
-      state = AsyncValue.data(availableTrades);
+      final animals = await _repository.searchAnimals(query);
+      // Filter to only show listed animals
+      final availableAnimals = animals.where((animal) => 
+        animal.isListed || 
+        animal.reviewStatus == AnimalStatus.expertApproved ||
+        animal.reviewStatus == AnimalStatus.listed
+      ).toList();
+      
+      // Filter by species if provided
+      final filtered = species != null && species != 'All'
+          ? availableAnimals.where((animal) => 
+              animal.species.toLowerCase() == species.toLowerCase()
+            ).toList()
+          : availableAnimals;
+      
+      state = AsyncValue.data(filtered);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     }

@@ -122,22 +122,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
       floating: false,
       backgroundColor: Theme.of(context).colorScheme.surface,
       elevation: 0,
-      leading: IconButton(
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.menu_rounded,
-            color: AppTheme.primaryColor,
-            size: isDesktop ? 24 : (isTablet ? 22 : 20),
-          ),
-        ),
-        tooltip: 'Menu',
-      ),
+      leading: null,
+      automaticallyImplyLeading: false,
       actions: [
         IconButton(
           onPressed: () {},
@@ -192,14 +178,35 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    'Livestock Marketplace',
-                    style: GoogleFonts.poppins(
-                      fontSize: isDesktop ? 32 : (isTablet ? 28 : 24),
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.menu_rounded,
+                            color: Colors.white,
+                            size: isDesktop ? 24 : (isTablet ? 22 : 20),
+                          ),
+                        ),
+                        tooltip: 'Menu',
+                      ),
+                      SizedBox(width: isDesktop ? 12 : (isTablet ? 8 : 6)),
+                      Text(
+                        'Livestock Marketplace',
+                        style: GoogleFonts.poppins(
+                          fontSize: isDesktop ? 32 : (isTablet ? 28 : 24),
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: isDesktop ? 8 : (isTablet ? 6 : 4)),
                   Text(
@@ -274,7 +281,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
   }
 
   SliverList _buildMarketplaceContent(
-    AsyncValue<List<Trade>> tradesState,
+    AsyncValue<List<Animal>> animalsState,
     bool isDesktop,
     bool isTablet,
     bool isMobile,
@@ -297,34 +304,26 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
               horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
               vertical: isDesktop ? 24 : (isTablet ? 20 : 16),
             ),
-            child: tradesState.when(
-              data: (trades) {
-                // Base + filter using unified helper
-                List<Trade> filtered = trades
-                    .where((t) =>
-                        t.isActive ||
-                        t.status == 'LISTED' ||
-                        t.status == 'ACTIVE')
-                    .where((t) => _matchesFilterTrade(t, _selectedFilter))
-                    .toList();
+            child: animalsState.when(
+              data: (animals) {
+                // Filter by species
+                List<Animal> filtered = animals.where((a) => 
+                  _matchesFilterAnimal(a, _selectedFilter)
+                ).toList();
 
                 // Apply sorting
                 if (_sortBy == 'newest') {
                   filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
                 } else if (_sortBy == 'name') {
-                  int compare(String? a, String? b) => (a ?? '')
-                      .toLowerCase()
-                      .compareTo((b ?? '').toLowerCase());
-                  filtered
-                      .sort((a, b) => compare(a.animal?.name, b.animal?.name));
+                  filtered.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
                 }
 
                 if (filtered.isNotEmpty) {
                   return _isGridView
-                      ? _buildTradeGrid(filtered, isDesktop, isTablet)
-                      : _buildTradeList(filtered, isDesktop, isTablet);
+                      ? _buildAnimalGrid(filtered, isDesktop, isTablet)
+                      : _buildAnimalList(filtered, isDesktop, isTablet);
                 }
-                // No trades
+                // No animals
                 return _buildEmptyState(isDesktop, isTablet);
               },
               loading: () => _buildLoadingState(isDesktop, isTablet),
@@ -339,7 +338,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
     );
   }
 
-  Widget _buildTradeGrid(List<Trade> trades, bool isDesktop, bool isTablet) {
+  Widget _buildAnimalGrid(List<Animal> animals, bool isDesktop, bool isTablet) {
     final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 1);
     final spacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
     return GridView.builder(
@@ -349,21 +348,15 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
-        childAspectRatio: isDesktop ? 0.86 : (isTablet ? 0.9 : 1.0),
+        childAspectRatio: isDesktop ? 0.75 : (isTablet ? 0.8 : 0.85),
       ),
-      itemCount: trades.length,
+      itemCount: animals.length,
       itemBuilder: (context, index) {
-        final t = trades[index];
+        final animal = animals[index];
         final auth = ref.read(authNotifierProvider);
         final myId = auth.user?.id;
-        final disableBuy = myId != null && (myId == t.sellerId);
-        return MarketplaceCard(
-          trade: t,
-          onTap: () => context.push('/animals/${t.animalId}'),
-          disableBuy: disableBuy,
-          showOwnerBadge: disableBuy,
-          onBuy: disableBuy ? null : () => _openTradeDialog(t),
-        );
+        final disableBuy = myId != null && (myId == animal.ownerId);
+        return _buildAnimalCardSimple(animal, isDesktop, isTablet);
       },
     );
   }
@@ -373,75 +366,88 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
       onTap: () => context.push('/animals/${a.id}'),
       borderRadius: isDesktop ? 16 : (isTablet ? 12 : 8),
       enableHoverAnimation: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(isDesktop ? 16 : (isTablet ? 12 : 8)),
-              topRight: Radius.circular(isDesktop ? 16 : (isTablet ? 12 : 8)),
-            ),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              child: Container(
-                color: AppTheme.grey100,
-                child: a.imageUrl != null
-                    ? Image.network(a.imageUrl!, fit: BoxFit.cover)
-                    : Center(
-                        child: Icon(Icons.pets,
-                            color: AppTheme.grey400, size: isDesktop ? 48 : 40),
-                      ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.all(isDesktop ? 16 : (isTablet ? 14 : 12)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(a.name,
-                          style: GoogleFonts.poppins(
-                              fontSize: isDesktop ? 18 : 16,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 4),
-                      Text(
-                          '${a.species}${a.breed != null ? ' • ${a.breed}' : ''}',
-                          style: GoogleFonts.poppins(
-                              fontSize: 12, color: AppTheme.grey600)),
-                    ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(isDesktop ? 16 : (isTablet ? 12 : 8)),
+                  topRight: Radius.circular(isDesktop ? 16 : (isTablet ? 12 : 8)),
+                ),
+                child: AspectRatio(
+                  aspectRatio: 16 / 10,
+                  child: Container(
+                    color: AppTheme.grey100,
+                    child: a.imageUrl != null
+                        ? Image.network(a.imageUrl!, fit: BoxFit.cover)
+                        : Center(
+                            child: Icon(Icons.pets,
+                                color: AppTheme.grey400, size: isDesktop ? 48 : 40),
+                          ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('${a.age ?? '-'} yrs',
-                          style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryColor)),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8)),
-                        child: Text('View',
-                            style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryColor)),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+              Padding(
+                padding: EdgeInsets.all(isDesktop ? 12 : (isTablet ? 10 : 8)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      a.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: isDesktop ? 16 : 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${a.species}${a.breed != null ? ' • ${a.breed}' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: AppTheme.grey600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${a.age ?? '-'} yrs',
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6)),
+                          child: Text('View',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primaryColor)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -471,23 +477,39 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(a.name,
-                    style: GoogleFonts.poppins(
-                        fontSize: isDesktop ? 16 : 14,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  a.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: isDesktop ? 16 : 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text('${a.species}${a.breed != null ? ' • ${a.breed}' : ''}',
-                    style: GoogleFonts.poppins(
-                        fontSize: isDesktop ? 12 : 11,
-                        color: AppTheme.grey600)),
+                Text(
+                  '${a.species}${a.breed != null ? ' • ${a.breed}' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: isDesktop ? 12 : 11,
+                    color: AppTheme.grey600,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                Text(a.description ?? 'No description provided.',
+                Flexible(
+                  child: Text(
+                    a.description ?? 'No description provided.',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                        fontSize: isDesktop ? 12 : 11,
-                        color: AppTheme.grey700)),
+                      fontSize: isDesktop ? 12 : 11,
+                      color: AppTheme.grey700,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -497,25 +519,19 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
     );
   }
 
-  Widget _buildTradeList(List<Trade> trades, bool isDesktop, bool isTablet) {
+  Widget _buildAnimalList(List<Animal> animals, bool isDesktop, bool isTablet) {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: trades.length,
+      itemCount: animals.length,
       separatorBuilder: (_, __) =>
           SizedBox(height: isDesktop ? 20 : (isTablet ? 16 : 12)),
       itemBuilder: (context, index) {
-        final t = trades[index];
+        final animal = animals[index];
         final auth = ref.read(authNotifierProvider);
         final myId = auth.user?.id;
-        final disableBuy = myId != null && (myId == t.sellerId);
-        return MarketplaceCard(
-          trade: t,
-          onTap: () => context.push('/animals/${t.animalId}'),
-          disableBuy: disableBuy,
-          showOwnerBadge: disableBuy,
-          onBuy: disableBuy ? null : () => _openTradeDialog(t),
-        );
+        final disableBuy = myId != null && (myId == animal.ownerId);
+        return _buildAnimalCardSimple(animal, isDesktop, isTablet);
       },
     );
   }
@@ -990,7 +1006,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
-        childAspectRatio: isDesktop ? 0.86 : (isTablet ? 0.9 : 1.0),
+        childAspectRatio: isDesktop ? 0.75 : (isTablet ? 0.8 : 0.85),
       ),
       itemCount: 6,
       itemBuilder: (context, index) {
@@ -1214,6 +1230,17 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
 
 // --- Filtering helpers (single source of truth) ---
 extension on _MarketplaceScreenState {
+  bool _matchesFilterAnimal(Animal a, String label) {
+    if (label == 'All') return true;
+    final speciesMap = {
+      'Cows': 'COW',
+      'Goats': 'GOAT',
+      'Sheep': 'SHEEP',
+    };
+    final targetSpecies = speciesMap[label] ?? label.toUpperCase();
+    return a.species == targetSpecies;
+  }
+
   bool _matchesFilterTrade(Trade t, String label) {
     if (label == 'All') return true;
     final speciesCode = (t.animal?.species ?? '').toUpperCase();
