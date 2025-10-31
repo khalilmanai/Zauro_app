@@ -100,10 +100,18 @@ export class AnimalsService {
       }
     }
 
+    // Ensure isListed is a boolean (transform in DTO should handle this, but extra safety check)
+    const isListed = createAnimalDto.isListed !== undefined 
+      ? (typeof createAnimalDto.isListed === 'boolean' 
+          ? createAnimalDto.isListed 
+          : String(createAnimalDto.isListed).toLowerCase() === 'true')
+      : false;
+
     // Create animal record
     const animal = await this.prisma.animal.create({
       data: {
         ...createAnimalDto,
+        isListed,
         ownerId: userId,
         imageUrl,
         vetRecordUrl,
@@ -571,9 +579,17 @@ export class AnimalsService {
       throw new ForbiddenException('You can only update your own animals');
     }
 
+    // When an animal is updated, it must be unlisted and go back to pending expert review
     const updatedAnimal = await this.prisma.animal.update({
       where: { id },
-      data: updateAnimalDto,
+      data: {
+        ...updateAnimalDto,
+        isListed: false, // Always unlist on update
+        status: 'PENDING_EXPERT_REVIEW', // Reset to pending review
+        expertReviewedBy: null, // Clear previous review
+        expertReviewComment: null,
+        expertReviewDate: null,
+      },
       include: {
         owner: {
           select: {
