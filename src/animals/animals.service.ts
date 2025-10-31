@@ -50,6 +50,7 @@ export class AnimalsService {
     // AI Analysis if enabled and image is available
     let aiPredictionValue: number | undefined;
     let aiAnalysisData: any = null;
+    let aiDescription: string | undefined;
 
     if (enableAIAnalysis && imageUrl && createAnimalDto.species === 'COW') {
       try {
@@ -68,6 +69,11 @@ export class AnimalsService {
           detected_attributes: aiResult.detected_attributes,
           ai_confidence: aiResult.ai_confidence,
         };
+
+        // Generate description from AI analysis results (includes health information)
+        if (aiResult.detected_attributes) {
+          aiDescription = this.aiAnalysisService.generateDescription(aiResult.detected_attributes);
+        }
 
         // If breed/age detected but not provided, update from AI
         if (!createAnimalDto.breed && aiResult.detected_attributes.breed) {
@@ -97,6 +103,7 @@ export class AnimalsService {
       } catch (error) {
         console.error('AI Analysis failed, continuing without AI data:', error);
         // Continue without AI analysis if it fails
+        // Description will use user-provided value or default
       }
     }
 
@@ -107,10 +114,14 @@ export class AnimalsService {
           : String(createAnimalDto.isListed).toLowerCase() === 'true')
       : false;
 
+    // Use AI-generated description if available, otherwise use user-provided description
+    const finalDescription = aiDescription || createAnimalDto.description;
+
     // Create animal record
     const animal = await this.prisma.animal.create({
       data: {
         ...createAnimalDto,
+        description: finalDescription,
         isListed,
         ownerId: userId,
         imageUrl,

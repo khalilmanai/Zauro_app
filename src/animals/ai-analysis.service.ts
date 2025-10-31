@@ -177,7 +177,7 @@ export class AIAnalysisService {
   /**
    * Generate description from detected attributes
    */
-  private generateDescription(attributes: DetectedAttributes): string {
+  generateDescription(attributes: DetectedAttributes): string {
     const { breed, age, sex, health_status, health_details } = attributes;
     
     let description = `A ${age} ${sex.toLowerCase()} ${breed || 'cattle'}. `;
