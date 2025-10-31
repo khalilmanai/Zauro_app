@@ -5,7 +5,7 @@ import '../../../core/network/api_client.dart';
 
 // Wallet State Provider
 final walletProvider =
-    StateNotifierProvider<WalletNotifier, AsyncValue<WalletResponse?>>((ref) {
+    StateNotifierProvider<WalletNotifier, AsyncValue<Wallet?>>((ref) {
   final repository = ref.watch(walletRepositoryProvider);
   return WalletNotifier(repository);
 });
@@ -26,7 +26,7 @@ final transferProvider =
   return TransferNotifier(repository);
 });
 
-class WalletNotifier extends StateNotifier<AsyncValue<WalletResponse?>> {
+class WalletNotifier extends StateNotifier<AsyncValue<Wallet?>> {
   final WalletRepository _repository;
 
   WalletNotifier(this._repository) : super(const AsyncValue.data(null));
@@ -46,9 +46,13 @@ class WalletNotifier extends StateNotifier<AsyncValue<WalletResponse?>> {
   Future<void> getMyWallet() async {
     state = const AsyncValue.loading();
     try {
+      print('🔄 WalletNotifier - Fetching wallet...');
       final wallet = await _repository.getMyWallet();
+      print('✅ WalletNotifier - Wallet received: $wallet');
+      print('✅ WalletNotifier - Public key: ${wallet.publicKey}');
       state = AsyncValue.data(wallet);
     } catch (error, stackTrace) {
+      print('❌ WalletNotifier - Error: $error');
       state = AsyncValue.error(error, stackTrace);
     }
   }
@@ -82,7 +86,6 @@ class WalletBalanceNotifier extends StateNotifier<AsyncValue<WalletBalance?>> {
       print('📊 Balance state updated successfully');
     } catch (error, stackTrace) {
       print('❌ Balance fetch error: $error');
-      print('❌ Stack trace: $stackTrace');
       state = AsyncValue.error(error, stackTrace);
     }
   }
@@ -144,7 +147,6 @@ class DIDNotifier extends StateNotifier<AsyncValue<String?>> {
     try {
       final response = await _apiClient.getMyDid();
       if (response.success && response.data != null) {
-        // Extract DID from response data
         final did = response.data?.did;
         state = AsyncValue.data(did);
       } else {

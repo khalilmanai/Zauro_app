@@ -35,7 +35,7 @@ class EnvironmentConfig {
       case Environment.development:
         return const String.fromEnvironment(
           'DEV_API_URL',
-          defaultValue: 'http://10.0.2.2:3000',
+          defaultValue: 'http://192.168.1.14:3000',
         );
       case Environment.staging:
         return const String.fromEnvironment(

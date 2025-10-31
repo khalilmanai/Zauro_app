@@ -10,7 +10,7 @@ import '../../../shared/presentation/widgets/custom_text_field.dart';
 import '../../data/models/wallet_models.dart';
 
 class FundWalletDialog extends ConsumerStatefulWidget {
-  final WalletResponse wallet;
+  final Wallet wallet;
   final VoidCallback onFundComplete;
 
   const FundWalletDialog({

@@ -8,39 +8,40 @@ part of 'wallet_models.dart';
 
 Wallet _$WalletFromJson(Map<String, dynamic> json) => Wallet(
       id: json['id'] as String,
-      userId: json['userId'] as String,
       hederaAccountId: json['hederaAccountId'] as String,
       publicKey: json['publicKey'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-      user: json['user'] == null
+      balance: json['balance'] == null
           ? null
-          : WalletUser.fromJson(json['user'] as Map<String, dynamic>),
+          : WalletBalance.fromJson(json['balance'] as Map<String, dynamic>),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: json['updatedAt'] == null
+          ? null
+          : DateTime.parse(json['updatedAt'] as String),
     );
 
 Map<String, dynamic> _$WalletToJson(Wallet instance) => <String, dynamic>{
       'id': instance.id,
-      'userId': instance.userId,
       'hederaAccountId': instance.hederaAccountId,
       'publicKey': instance.publicKey,
+      'balance': instance.balance,
       'createdAt': instance.createdAt.toIso8601String(),
-      'updatedAt': instance.updatedAt.toIso8601String(),
-      'user': instance.user,
+      'updatedAt': instance.updatedAt?.toIso8601String(),
     };
 
-WalletUser _$WalletUserFromJson(Map<String, dynamic> json) => WalletUser(
-      id: json['id'] as String,
-      firstName: json['firstName'] as String,
-      lastName: json['lastName'] as String,
-      email: json['email'] as String,
+WalletBalance _$WalletBalanceFromJson(Map<String, dynamic> json) =>
+    WalletBalance(
+      hbar: json['hbar'] as String,
+      zau: json['zau'] as String,
+      tokens: json['tokens'] as Map<String, dynamic>?,
+      timestamp: json['timestamp'] as String?,
     );
 
-Map<String, dynamic> _$WalletUserToJson(WalletUser instance) =>
+Map<String, dynamic> _$WalletBalanceToJson(WalletBalance instance) =>
     <String, dynamic>{
-      'id': instance.id,
-      'firstName': instance.firstName,
-      'lastName': instance.lastName,
-      'email': instance.email,
+      'hbar': instance.hbar,
+      'zau': instance.zau,
+      'tokens': instance.tokens,
+      'timestamp': instance.timestamp,
     };
 
 Transaction _$TransactionFromJson(Map<String, dynamic> json) => Transaction(
@@ -122,22 +123,4 @@ Map<String, dynamic> _$FundAccountRequestToJson(FundAccountRequest instance) =>
       'accountId': instance.accountId,
       'amount': instance.amount,
       'memo': instance.memo,
-    };
-
-SendTransactionRequest _$SendTransactionRequestFromJson(
-        Map<String, dynamic> json) =>
-    SendTransactionRequest(
-      toAddress: json['toAddress'] as String,
-      amount: (json['amount'] as num).toDouble(),
-      currency: json['currency'] as String,
-      description: json['description'] as String?,
-    );
-
-Map<String, dynamic> _$SendTransactionRequestToJson(
-        SendTransactionRequest instance) =>
-    <String, dynamic>{
-      'toAddress': instance.toAddress,
-      'amount': instance.amount,
-      'currency': instance.currency,
-      'description': instance.description,
     };

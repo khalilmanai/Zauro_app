@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/animations/micro_interactions.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../animals/presentation/screens/animals_list_screen.dart';
@@ -162,15 +163,28 @@ class _MainScreenState extends ConsumerState<MainScreen>
                     Text(
                       currentItem.label,
                       style: theme.textTheme.headlineSmall?.copyWith(
-                        color: currentItem.color,
-                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                    Text(
-                      'Zauro Marketplace',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/logo.png',
+                          width: 16,
+                          height: 16,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Zauro Marketplace',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -385,59 +399,57 @@ class _MainScreenState extends ConsumerState<MainScreen>
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color:
-                  isSelected ? item.color.withOpacity(0.1) : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-              border: isSelected
-                  ? Border.all(
-                      color: item.color.withOpacity(0.3),
-                      width: 1,
-                    )
-                  : null,
-            ),
-            child: Row(
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    isSelected ? item.activeIcon : item.icon,
-                    key: ValueKey(isSelected),
-                    color:
-                        isSelected ? item.color : theme.colorScheme.onSurface,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AnimatedDefaultTextStyle(
+          child: HoverScale(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isSelected ? item.color.withOpacity(0.1) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: isSelected
+                    ? Border.all(
+                        color: item.color.withOpacity(0.3),
+                        width: 1,
+                      )
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color:
-                          isSelected ? item.color : theme.colorScheme.onSurface,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                    child: Text(
-                      item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Icon(
+                      isSelected ? item.activeIcon : item.icon,
+                      key: ValueKey(isSelected),
+                      color: isSelected ? item.color : theme.colorScheme.onSurface,
+                      size: 20,
                     ),
                   ),
-                ),
-                if (isSelected)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: item.color,
-                      shape: BoxShape.circle,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      style: theme.textTheme.bodyMedium!.copyWith(
+                        color: isSelected ? item.color : theme.colorScheme.onSurface,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                      child: Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-              ],
+                  if (isSelected)
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: item.color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -752,16 +764,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
   Widget _buildThemeToggle(BuildContext context) {
     final theme = Theme.of(context);
-    final themeState = ref.watch(themeProvider);
+    final prefs = ref.watch(themeProvider);
+    final isDark = ref.watch(isDarkModeProvider);
 
     return IconButton(
       onPressed: () {
         ref.read(themeProvider.notifier).toggleTheme();
         HapticFeedback.lightImpact();
       },
-      icon: Icon(
-        themeState == AppThemeMode.dark ? Icons.light_mode : Icons.dark_mode,
-      ),
+      icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
       style: IconButton.styleFrom(
         backgroundColor: theme.colorScheme.surfaceContainerHighest,
       ),

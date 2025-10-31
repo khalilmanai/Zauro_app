@@ -12,7 +12,7 @@ import '../../providers/wallet_provider.dart';
 import 'qr_scanner_widget.dart';
 
 class EnhancedSendDialog extends ConsumerStatefulWidget {
-  final WalletResponse wallet;
+  final Wallet wallet;
   final VoidCallback onTransferComplete;
 
   const EnhancedSendDialog({
@@ -324,7 +324,7 @@ class _EnhancedSendDialogState extends ConsumerState<EnhancedSendDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: CustomButton(
-                        onPressed: _isLoading ? null : _sendWithBiometric,
+                        onPressed: _isLoading ? null : _confirmAndSend,
                         text: 'Send $_selectedAsset',
                         isLoading: _isLoading,
                       ),
@@ -512,5 +512,156 @@ class _EnhancedSendDialogState extends ConsumerState<EnhancedSendDialog> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _confirmAndSend() async {
+    if (_isLoading) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedAsset == 'ZAU') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+                'ZAU transfers are currently not supported. Please use HBAR.'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+      return;
+    }
+
+    final amountText = _amountController.text.trim();
+    final toText = _toAccountController.text.trim();
+    final memoText = _memoController.text.trim();
+
+    // Simple fee estimate placeholder (could be fetched/calculated)
+    const feeEstimateHbar = 0.0001;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.grey900 : AppTheme.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.receipt_long_rounded,
+                        color: AppTheme.getTextColor(context)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Confirm Transfer',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.getTextColor(context),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _confirmRow('Asset', _selectedAsset),
+                const SizedBox(height: 8),
+                _confirmRow('Amount', amountText),
+                const SizedBox(height: 8),
+                _confirmRow('Recipient', toText),
+                if (memoText.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _confirmRow('Memo', memoText),
+                ],
+                const SizedBox(height: 12),
+                Divider(color: AppTheme.getBorderColor(context)),
+                const SizedBox(height: 12),
+                _confirmRow('Estimated Fee', '$feeEstimateHbar HBAR'),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'Edit',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.getMutedTextColor(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: CustomButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                try {
+                                  Navigator.of(context).pop();
+                                  await _sendWithBiometric();
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(this.context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: AppTheme.errorColor,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        text: 'Confirm & Send',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _confirmRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.getMutedTextColor(context),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.getTextColor(context),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

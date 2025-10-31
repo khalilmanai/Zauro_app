@@ -859,7 +859,6 @@ class _RegistrationCarouselScreenState
                 },
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: BorderSide(color: AppTheme.grey300),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -869,7 +868,6 @@ class _RegistrationCarouselScreenState
                   style: GoogleFonts.poppins(
                     fontSize: MediaQuery.of(context).size.width < 380 ? 14 : 16,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.grey700,
                   ),
                 ),
               ),

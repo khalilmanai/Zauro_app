@@ -116,13 +116,9 @@ class AppConfig {
 
   // Animal Species (matching backend AnimalSpecies enum)
   static const List<String> animalSpecies = [
-    'DOG',
-    'CAT',
-    'BIRD',
-    'FISH',
-    'REPTILE',
-    'EXOTIC',
-    'OTHER',
+    'COW',
+    'GOAT',
+    'SHEEP',
   ];
 
   // Animal Status (matching backend AnimalStatus enum)
@@ -142,9 +138,8 @@ class AppConfig {
 
   // User Roles (matching backend UserRole enum)
   static const List<String> userRoles = [
-    'USER',
+    'EMPLOYEE_TRADER',
     'ADMIN',
-    'HR_MANAGER',
   ];
 
   // Trade Status (matching backend TradeStatus enum)

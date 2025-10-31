@@ -150,7 +150,7 @@ class WalletInfoCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildWalletDetails(WalletResponse wallet) {
+  Widget _buildWalletDetails(Wallet wallet) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

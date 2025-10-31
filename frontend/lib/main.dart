@@ -99,26 +99,43 @@ class ZauroApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final themeMode = ref.watch(themeProvider);
+    final prefs = ref.watch(themeProvider);
+    final isDark = ref.watch(isDarkModeProvider);
 
     // Initialize app lifecycle manager (auto-loads wallet on login)
     ref.watch(appLifecycleProvider);
 
+    final lightSeeded =
+        AppTheme.themed(isDark: false, seedColor: prefs.seedColor);
+    final darkSeeded =
+        AppTheme.themed(isDark: true, seedColor: prefs.seedColor);
+
     return MaterialApp.router(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode.themeMode,
+      theme: lightSeeded,
+      darkTheme: darkSeeded,
+      themeMode: prefs.mode.themeMode,
+      themeAnimationDuration: const Duration(milliseconds: 300),
+      themeAnimationCurve: Curves.easeInOut,
       routerConfig: router,
       showPerformanceOverlay: EnvironmentConfig.showPerformanceOverlay,
       builder: (context, child) {
         // Preload critical resources
         PerformanceService.preloadCriticalResources(context);
 
+        final theme = isDark ? darkSeeded : lightSeeded;
+        final overlay = SystemUiOverlayStyle(
+          statusBarColor: AppColors.transparent,
+          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          systemNavigationBarColor: theme.colorScheme.surface,
+          systemNavigationBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
+        );
+
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.noScaling,
+            textScaler: MediaQuery.of(context).textScaler,
             // Ensure proper viewport handling for all screen sizes
             size: MediaQuery.of(context).size,
             padding: MediaQuery.of(context).padding,
@@ -137,9 +154,12 @@ class ZauroApp extends ConsumerWidget {
             gestureSettings: MediaQuery.of(context).gestureSettings,
             displayFeatures: MediaQuery.of(context).displayFeatures,
           ),
-          child: AnimatedSplashScreen(
-            duration: const Duration(seconds: 1),
-            child: child!,
+          child: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: overlay,
+            child: AnimatedSplashScreen(
+              duration: const Duration(seconds: 1),
+              child: child!,
+            ),
           ),
         );
       },

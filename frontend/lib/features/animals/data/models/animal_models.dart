@@ -55,8 +55,10 @@ class Animal {
   final double? aiPredictionValue;
   final String ownerId;
   final bool isListed;
+  @JsonKey(name: 'status')
   final AnimalStatus? reviewStatus; // New field matching backend
-  final String? reviewComment; // New field for admin review comments
+  @JsonKey(name: 'expertReviewComment')
+  final String? reviewComment; // Maps from expertReviewComment in backend
   final DateTime createdAt;
   final DateTime updatedAt;
   final AnimalOwner? owner;

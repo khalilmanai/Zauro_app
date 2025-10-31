@@ -62,7 +62,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.error!),
-            backgroundColor: AppTheme.errorColor,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
         ref.read(authNotifierProvider.notifier).clearError();
@@ -70,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.grey50,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: LoadingOverlay(
         isLoading: authState.isLoading,
         child: SafeArea(
@@ -110,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: GoogleFonts.poppins(
             fontSize: 28,
             fontWeight: FontWeight.w600,
-            color: AppTheme.getPrimaryColor(context),
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         const SizedBox(height: 8),
@@ -118,17 +118,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           'Sign in to your account',
           style: GoogleFonts.poppins(
             fontSize: 16,
-            color: AppTheme.grey600,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: AppTheme.success.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppTheme.success.withOpacity(0.2),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
               width: 1,
             ),
           ),
@@ -138,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Icon(
                 Icons.security_outlined,
                 size: 14,
-                color: AppTheme.success,
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 6),
               Text(
@@ -146,7 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.success,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],
@@ -160,11 +160,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.grey200.withOpacity(0.5),
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -180,7 +180,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.getPrimaryColor(context),
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 24),
@@ -214,7 +214,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _obscurePassword
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: AppTheme.grey500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
                 onPressed: () {
@@ -244,7 +244,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildRememberMe() {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.grey50,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: CheckboxListTile(
@@ -253,14 +253,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: AppTheme.grey700,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         subtitle: Text(
           'Keep me signed in securely for 30 days',
           style: GoogleFonts.poppins(
             fontSize: 12,
-            color: AppTheme.grey500,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         value: _rememberMe,
@@ -274,7 +274,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             await StorageService.clearRememberedCredentials();
           }
         },
-        activeColor: AppTheme.getPrimaryColor(context),
+        activeColor: Theme.of(context).colorScheme.primary,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         dense: true,
       ),
@@ -293,7 +293,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppTheme.primaryColor,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       ),
@@ -313,7 +313,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             isLoading: authState.isLoading,
             icon: Icon(
               Icons.login_outlined,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
               size: 20,
             ),
             gradient: AppTheme.getNeonPrimaryGradient(
@@ -327,21 +327,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           'Sign in with confidence',
           style: GoogleFonts.poppins(
             fontSize: 12,
-            color: AppTheme.success,
+            color: Theme.of(context).colorScheme.primary,
             fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            Icon(Icons.verified_user, color: AppTheme.success, size: 16),
+            Icon(Icons.verified_user, color: Theme.of(context).colorScheme.primary, size: 16),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Your data is protected with end-to-end encryption',
                 style: GoogleFonts.poppins(
                   fontSize: 11,
-                  color: AppTheme.grey500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -367,7 +367,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             'OR',
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: AppTheme.grey500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -388,7 +388,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       children: [
         Text(
           "Don't have an account? ",
-          style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.grey600),
+          style: GoogleFonts.poppins(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         TextButton(
           onPressed: () {
@@ -399,7 +399,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppTheme.primaryColor,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),

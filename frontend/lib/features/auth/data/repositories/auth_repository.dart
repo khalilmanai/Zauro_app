@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/utils/storage_service.dart';
 import '../models/auth_models.dart';
 import '../models/user_model.dart';
@@ -117,27 +118,54 @@ class AuthRepository {
   }) async {
     try {
       final request = LoginRequest(email: email, password: password);
-      final response = await _apiClient.login(request);
+      // Use raw dio to tolerate wrapped/unwrapped payloads
+      final dio = _apiClient.dio;
+      final rawResp = await dio.post('/auth/login', data: request.toJson());
 
-      if (response.success && response.data != null) {
-        // Store tokens
-        await StorageService.setAccessToken(response.data!.accessToken);
-        await StorageService.setRefreshToken(response.data!.refreshToken);
+      // Normalize response
+      final Map<String, dynamic> respData = (rawResp.data is Map)
+          ? Map<String, dynamic>.from(rawResp.data)
+          : {'data': rawResp.data};
+      Map<String, dynamic> apiMap;
+      if (respData.containsKey('success') || respData.containsKey('message')) {
+        apiMap = respData;
+      } else if (respData.containsKey('accessToken') && respData.containsKey('user')) {
+        apiMap = {
+          'success': true,
+          'message': 'Authentication successful',
+          'data': respData,
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+      } else {
+        apiMap = {
+          'success': false,
+          'message': 'Unexpected response',
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+      }
 
-        // Store user data
+      final apiResponse = ApiResponse.fromJson(
+        apiMap,
+        (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
+      );
+
+      if (apiResponse.success && apiResponse.data != null) {
+        final auth = apiResponse.data!;
+        await StorageService.setAccessToken(auth.accessToken);
+        await StorageService.setRefreshToken(auth.refreshToken);
+
         final userModel = UserModel(
-          id: response.data!.user.id,
-          email: response.data!.user.email,
-          firstName: response.data!.user.firstName,
-          lastName: response.data!.user.lastName,
-          role: response.data!.user.role,
-          isVerified: response.data!.user.isVerified,
-          lastLoginAt: response.data!.user.lastLoginAt,
-          country: response.data!.user.country,
+          id: auth.user.id,
+          email: auth.user.email,
+          firstName: auth.user.firstName,
+          lastName: auth.user.lastName,
+          role: auth.user.role,
+          isVerified: auth.user.isVerified,
+          lastLoginAt: auth.user.lastLoginAt,
+          country: auth.user.country,
         );
         await StorageService.setUserData(userModel);
 
-        // Handle remember me functionality
         await StorageService.setRememberMe(rememberMe);
         if (rememberMe) {
           await StorageService.setRememberMeCredentials(email, password);
@@ -145,14 +173,53 @@ class AuthRepository {
           await StorageService.clearRememberedCredentials();
         }
 
-        return response.data!;
-      } else {
-        throw Exception(response.message);
+        return auth;
       }
+      throw Exception(apiResponse.message);
     } on DioException catch (e) {
       throw _handleDioError(e);
     } catch (e) {
       throw Exception('Login failed: ${e.toString()}');
+    }
+  }
+
+  /// Verify password without mutating global auth/session state
+  /// Returns true if credentials are valid, false otherwise
+  Future<bool> verifyPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      // Use a fresh Dio to avoid interceptors/state side effects
+      final dio = Dio(BaseOptions(baseUrl: AppConfig.fullApiUrl));
+      final payload = {
+        'email': email,
+        'password': password,
+      };
+      final response = await dio.post('/auth/login', data: payload);
+
+      // Consider 200 as success with either wrapped or unwrapped payload
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          if (data.containsKey('success')) {
+            return data['success'] == true;
+          }
+          // Unwrapped response with tokens
+          if (data.containsKey('accessToken') && data.containsKey('user')) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } on DioException catch (e) {
+      // Treat invalid credentials as false; only throw for non-auth errors
+      final status = e.response?.statusCode;
+      if (status == 400 || status == 401) return false;
+      throw _handleDioError(e);
+    } catch (e) {
+      return false;
     }
   }
 
@@ -181,6 +248,63 @@ class AuthRepository {
       throw _handleDioError(e);
     } catch (e) {
       return null;
+    }
+  }
+
+  // Update current user profile (best-effort; backend may not support yet)
+  Future<User?> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? country,
+    String? avatarUrl,
+  }) async {
+    try {
+      final dio = _apiClient.dio;
+      final payload = <String, dynamic>{
+        if (firstName != null) 'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
+        if (email != null) 'email': email,
+        if (country != null) 'country': country,
+        if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      };
+      if (payload.isEmpty) return await getCurrentUser();
+
+      // Assume PATCH /auth/profile; tolerate wrapped or unwrapped
+      final res = await dio.patch('/auth/profile', data: payload);
+      final data = res.data;
+
+      Map<String, dynamic>? userMap;
+      if (data is Map<String, dynamic>) {
+        if (data.containsKey('data') && data['data'] is Map<String, dynamic>) {
+          userMap = (data['data'] as Map<String, dynamic>);
+        } else if (data.containsKey('id') && data.containsKey('email')) {
+          userMap = data;
+        }
+      }
+
+      if (userMap != null) {
+        final user = User.fromJson(userMap);
+        // Persist minimal local cache
+        await StorageService.setUserData(UserModel(
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          isVerified: user.isVerified,
+          lastLoginAt: user.lastLoginAt,
+          country: user.country,
+        ));
+        return user;
+      }
+
+      // Fallback: refetch profile
+      return await getCurrentUser();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Failed to update profile: ${e.toString()}');
     }
   }
 

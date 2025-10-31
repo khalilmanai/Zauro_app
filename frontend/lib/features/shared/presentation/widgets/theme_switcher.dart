@@ -9,13 +9,11 @@ class ThemeSwitcher extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTheme = ref.watch(themeProvider);
+    final prefs = ref.watch(themeProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     return PopupMenuButton<AppThemeMode>(
-      icon: Icon(
-        currentTheme.icon,
-        color: AppTheme.getForegroundColor(context),
-      ),
+      icon: Icon(prefs.mode.icon, color: scheme.onSurface),
       tooltip: 'Change theme',
       onSelected: (AppThemeMode themeMode) {
         ref.read(themeProvider.notifier).setTheme(themeMode);
@@ -28,27 +26,26 @@ class ThemeSwitcher extends ConsumerWidget {
             children: [
               Icon(
                 themeMode.icon,
-                color: currentTheme == themeMode
-                    ? AppTheme.getPrimaryColor(context)
-                    : AppTheme.getForegroundColor(context),
+                color:
+                    prefs.mode == themeMode ? scheme.primary : scheme.onSurface,
               ),
               const SizedBox(width: 12),
               Text(
                 themeMode.displayName,
                 style: TextStyle(
-                  color: currentTheme == themeMode
-                      ? AppTheme.getPrimaryColor(context)
-                      : AppTheme.getForegroundColor(context),
-                  fontWeight: currentTheme == themeMode
+                  color: prefs.mode == themeMode
+                      ? scheme.primary
+                      : scheme.onSurface,
+                  fontWeight: prefs.mode == themeMode
                       ? FontWeight.w600
                       : FontWeight.normal,
                 ),
               ),
-              if (currentTheme == themeMode) ...[
+              if (prefs.mode == themeMode) ...[
                 const Spacer(),
                 Icon(
                   Icons.check,
-                  color: AppTheme.getPrimaryColor(context),
+                  color: scheme.primary,
                   size: 20,
                 ),
               ],
@@ -65,19 +62,17 @@ class ThemeSwitcherTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTheme = ref.watch(themeProvider);
+    final prefs = ref.watch(themeProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     return ListTile(
-      leading: Icon(
-        Icons.palette_outlined,
-        color: AppTheme.getPrimaryColor(context),
-      ),
+      leading: Icon(Icons.palette_outlined, color: scheme.primary),
       title: const Text('Theme'),
-      subtitle: Text('Current: ${currentTheme.displayName}'),
+      subtitle: Text('Current: ${prefs.mode.displayName}'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: AppThemeMode.values.map((themeMode) {
-          final isSelected = currentTheme == themeMode;
+          final isSelected = prefs.mode == themeMode;
           return Padding(
             padding: const EdgeInsets.only(left: 8),
             child: InkWell(
@@ -86,20 +81,17 @@ class ThemeSwitcherTile extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppTheme.getPrimaryColor(context).withValues(alpha: 0.1)
-                      : null,
+                  color:
+                      isSelected ? scheme.primary.withValues(alpha: 0.1) : null,
                   borderRadius: BorderRadius.circular(8),
                   border: isSelected
-                      ? Border.all(color: AppTheme.getPrimaryColor(context))
-                      : Border.all(color: AppTheme.getBorderColor(context)),
+                      ? Border.all(color: scheme.primary)
+                      : Border.all(color: scheme.outline),
                 ),
                 child: Icon(
                   themeMode.icon,
                   size: 20,
-                  color: isSelected
-                      ? AppTheme.getPrimaryColor(context)
-                      : AppTheme.getForegroundColor(context),
+                  color: isSelected ? scheme.primary : scheme.onSurface,
                 ),
               ),
             ),
@@ -115,19 +107,20 @@ class QuickThemeToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTheme = ref.watch(themeProvider);
+    final prefs = ref.watch(themeProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     return IconButton(
       onPressed: () => ref.read(themeProvider.notifier).toggleTheme(),
       icon: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: Icon(
-          currentTheme.icon,
-          key: ValueKey(currentTheme),
-          color: AppTheme.getPrimaryColor(context),
+          prefs.mode.icon,
+          key: ValueKey(prefs.mode),
+          color: scheme.primary,
         ),
       ),
-      tooltip: 'Toggle theme (${currentTheme.displayName})',
+      tooltip: 'Toggle theme (${prefs.mode.displayName})',
     );
   }
 }

@@ -16,6 +16,8 @@ class ReceiveQrDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -23,7 +25,7 @@ class ReceiveQrDialog extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppTheme.white,
+          color: isDark ? AppTheme.grey900 : AppTheme.white,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -52,13 +54,14 @@ class ReceiveQrDialog extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.grey900,
+                      color: AppTheme.getTextColor(context),
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(Icons.close),
+                  icon:
+                      Icon(Icons.close, color: AppTheme.getTextColor(context)),
                 ),
               ],
             ),
@@ -69,10 +72,10 @@ class ReceiveQrDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.white,
+                color: isDark ? AppTheme.grey900 : AppTheme.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.grey200,
+                  color: isDark ? AppTheme.grey700 : AppTheme.grey200,
                   width: 1,
                 ),
               ),
@@ -80,14 +83,14 @@ class ReceiveQrDialog extends StatelessWidget {
                 data: hederaAccountId,
                 version: QrVersions.auto,
                 size: 200.0,
-                backgroundColor: AppTheme.white,
+                backgroundColor: isDark ? AppTheme.grey900 : AppTheme.white,
                 eyeStyle: QrEyeStyle(
                   eyeShape: QrEyeShape.square,
-                  color: AppTheme.grey900,
+                  color: AppTheme.getTextColor(context),
                 ),
                 dataModuleStyle: QrDataModuleStyle(
                   dataModuleShape: QrDataModuleShape.square,
-                  color: AppTheme.grey900,
+                  color: AppTheme.getTextColor(context),
                 ),
               ),
             ),
@@ -99,7 +102,7 @@ class ReceiveQrDialog extends StatelessWidget {
               'Your Hedera Account ID',
               style: GoogleFonts.poppins(
                 fontSize: 14,
-                color: AppTheme.grey600,
+                color: AppTheme.getMutedTextColor(context),
               ),
             ),
             SizedBox(height: 8),
@@ -107,10 +110,10 @@ class ReceiveQrDialog extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.grey50,
+                color: isDark ? AppTheme.grey800 : AppTheme.grey50,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.grey200,
+                  color: isDark ? AppTheme.grey700 : AppTheme.grey200,
                   width: 1,
                 ),
               ),
@@ -122,7 +125,7 @@ class ReceiveQrDialog extends StatelessWidget {
                       style: GoogleFonts.robotoMono(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.grey900,
+                        color: AppTheme.getTextColor(context),
                       ),
                     ),
                   ),
@@ -177,7 +180,7 @@ class ReceiveQrDialog extends StatelessWidget {
                     '• Verify the sender before confirming large amounts',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: AppTheme.grey600,
+                      color: AppTheme.getMutedTextColor(context),
                       height: 1.4,
                     ),
                   ),
@@ -233,4 +236,3 @@ class ReceiveQrDialog extends StatelessWidget {
     );
   }
 }
-

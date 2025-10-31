@@ -15,6 +15,7 @@ import '../../features/wallet/data/models/wallet_models.dart';
 import '../../features/did/data/models/did_models.dart';
 import '../../features/admin/data/models/collection_models.dart';
 import 'network_exceptions.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 part 'api_client.g.dart';
 
@@ -113,10 +114,17 @@ abstract class ApiClient {
   Future<ApiResponse<Animal>> createAnimal(@Body() CreateAnimalRequest request);
 
   @GET('/animals')
-  Future<ApiResponse<PaginatedResponse<Animal>>> getAnimals(
+  Future<HttpResponse<dynamic>> getAnimals(
     @Query('page') int page,
     @Query('limit') int limit,
     @Query('ownerId') String? ownerId,
+  );
+
+  // My Animals (authenticated user's animals)
+  @GET('/animals/my')
+  Future<HttpResponse<dynamic>> getMyAnimals(
+    @Query('page') int page,
+    @Query('limit') int limit,
   );
 
   @GET('/animals/pending-review')
@@ -171,24 +179,24 @@ abstract class ApiClient {
 
   // Wallet Endpoints
   @POST('/wallets/create')
-  Future<ApiResponse<WalletResponse>> createWallet(
+  Future<ApiResponse<Wallet>> createWallet(
       @Body() CreateWalletRequest request);
 
   @GET('/wallets/my-wallet')
-  Future<ApiResponse<WalletResponse>> getMyWallet();
+  Future<Wallet> getMyWallet();
 
   // Note: This endpoint returns data directly, not wrapped in ApiResponse
   // Using raw Map to get JSON directly
   @GET('/wallets/my-wallet/balance')
-  Future<Map<String, dynamic>> getMyWalletBalanceRaw();
+  Future<WalletBalance> getMyWalletBalanceRaw();
 
   /// Get wallet by ID
   @GET('/wallets/{id}')
-  Future<ApiResponse<WalletResponse>> getWallet(@Path('id') String id);
+  Future<ApiResponse<Wallet>> getWallet(@Path('id') String id);
 
   /// Get wallet balance by ID - returns data directly
   @GET('/wallets/{id}/balance')
-  Future<Map<String, dynamic>> getWalletBalanceRaw(@Path('id') String id);
+  Future<WalletBalance> getWalletBalanceRaw(@Path('id') String id);
 
   /// Transfer HBAR to another account
   @POST('/wallets/transfer/hbar')
@@ -210,7 +218,7 @@ abstract class ApiClient {
 
   /// Create wallet with balance
   @POST('/wallets/create-with-balance')
-  Future<ApiResponse<WalletResponse>> createWalletWithBalance(
+  Future<ApiResponse<Wallet>> createWalletWithBalance(
     @Body() FundAccountRequest request,
   );
 
@@ -321,9 +329,24 @@ class ResponseTransformInterceptor extends Interceptor {
           }
         }
 
-        // Add success flag to responses that don't have it
-        if (!data.containsKey('success') && response.statusCode == 200) {
-          data['success'] = true;
+        // Normalize single-animal GET responses that may return raw object
+        final path = response.requestOptions.path;
+        final method = response.requestOptions.method.toUpperCase();
+        final looksLikeRawAnimal =
+            data.containsKey('id') && data.containsKey('species');
+
+        if (method == 'GET' && path.contains('/animals/') && looksLikeRawAnimal) {
+          response.data = {
+            'success': true,
+            'message': 'OK',
+            'data': data,
+            'timestamp': DateTime.now().toIso8601String(),
+          };
+        } else {
+          // Add success flag to responses that don't have it
+          if (!data.containsKey('success') && response.statusCode == 200) {
+            data['success'] = true;
+          }
         }
       }
 
@@ -516,16 +539,31 @@ class AuthInterceptor extends Interceptor {
 
   /// Check if endpoint is public (doesn't require authentication)
   bool _isPublicEndpoint(String path) {
-    final publicEndpoints = [
-      '/auth/register',
-      '/auth/login',
-      '/auth/forgot-password/',
-      '/animals', // GET all animals is public
-      '/trades', // GET all trades is public
-      '/admin/collections/default', // Get default collection is public
-    ];
+    // Be precise: only specific endpoints are public.
+    // Do NOT use substring matches that could include protected routes like /animals/{id}.
+    if (path == '/auth/register' || path == '/auth/login') {
+      return true;
+    }
 
-    return publicEndpoints.any((endpoint) => path.contains(endpoint));
+    // All forgot-password subpaths are public
+    if (path.startsWith('/auth/forgot-password')) {
+      return true;
+    }
+
+    // Public list endpoints (no path params)
+    if (path == '/animals') {
+      return true;
+    }
+
+    if (path == '/trades') {
+      return true;
+    }
+
+    if (path == '/admin/collections/default') {
+      return true;
+    }
+
+    return false;
   }
 
   /// Check if endpoint is an auth endpoint (login/register)
@@ -639,6 +677,7 @@ class ErrorHandlerInterceptor extends Interceptor {
 }
 
 // Generic API Response Model
+@JsonSerializable(genericArgumentFactories: true)
 class ApiResponse<T> {
   final bool success;
   final String message;
@@ -655,17 +694,23 @@ class ApiResponse<T> {
   factory ApiResponse.fromJson(
     Map<String, dynamic> json,
     T Function(Object? json) fromJsonT,
-  ) {
-    return ApiResponse<T>(
-      success: json['success'] ?? false,
-      message: json['message'] ?? '',
-      data: json['data'] != null ? fromJsonT(json['data']) : null,
-      timestamp: json['timestamp'] ?? '',
-    );
-  }
+  ) => ApiResponse<T>(
+        success: json['success'] ?? false,
+        message: json['message'] ?? '',
+        data: json['data'] != null ? fromJsonT(json['data']) : null,
+        timestamp: json['timestamp'] ?? '',
+      );
+
+  Map<String, dynamic> toJson(Object? Function(T value) toJsonT) => {
+        'success': success,
+        'message': message,
+        'data': data == null ? null : toJsonT(data as T),
+        'timestamp': timestamp,
+      };
 }
 
 // Paginated Response Model
+@JsonSerializable(genericArgumentFactories: true)
 class PaginatedResponse<T> {
   final List<T> data;
   final PaginationInfo pagination;
@@ -675,12 +720,16 @@ class PaginatedResponse<T> {
   factory PaginatedResponse.fromJson(
     Map<String, dynamic> json,
     T Function(Object? json) fromJsonT,
-  ) {
-    return PaginatedResponse<T>(
-      data: (json['data'] as List?)?.map((e) => fromJsonT(e)).toList() ?? [],
-      pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
-    );
-  }
+  ) => PaginatedResponse<T>(
+        data:
+            (json['data'] as List?)?.map((e) => fromJsonT(e)).toList() ?? [],
+        pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
+      );
+
+  Map<String, dynamic> toJson(Object? Function(T value) toJsonT) => {
+        'data': data.map((e) => toJsonT(e)).toList(),
+        'pagination': pagination.toJson(),
+      };
 }
 
 class PaginationInfo {
@@ -704,6 +753,13 @@ class PaginationInfo {
       totalPages: json['totalPages'] ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'page': page,
+        'limit': limit,
+        'total': total,
+        'totalPages': totalPages,
+      };
 }
 
 // Message Response Model

@@ -21,9 +21,8 @@ Animal _$AnimalFromJson(Map<String, dynamic> json) => Animal(
       aiPredictionValue: (json['aiPredictionValue'] as num?)?.toDouble(),
       ownerId: json['ownerId'] as String,
       isListed: json['isListed'] as bool,
-      reviewStatus:
-          $enumDecodeNullable(_$AnimalStatusEnumMap, json['reviewStatus']),
-      reviewComment: json['reviewComment'] as String?,
+      reviewStatus: $enumDecodeNullable(_$AnimalStatusEnumMap, json['status']),
+      reviewComment: json['expertReviewComment'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       owner: json['owner'] == null
@@ -46,8 +45,8 @@ Map<String, dynamic> _$AnimalToJson(Animal instance) => <String, dynamic>{
       'aiPredictionValue': instance.aiPredictionValue,
       'ownerId': instance.ownerId,
       'isListed': instance.isListed,
-      'reviewStatus': _$AnimalStatusEnumMap[instance.reviewStatus],
-      'reviewComment': instance.reviewComment,
+      'status': _$AnimalStatusEnumMap[instance.reviewStatus],
+      'expertReviewComment': instance.reviewComment,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
       'owner': instance.owner,

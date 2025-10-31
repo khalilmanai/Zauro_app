@@ -10,7 +10,7 @@ import '../../data/models/wallet_models.dart';
 import '../../providers/wallet_provider.dart';
 
 class TransferHbarDialog extends ConsumerStatefulWidget {
-  final WalletResponse wallet;
+  final Wallet wallet;
   final VoidCallback onTransferComplete;
 
   const TransferHbarDialog({

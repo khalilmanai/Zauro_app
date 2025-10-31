@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../trading/data/models/trade_models.dart';
 import '../../../trading/providers/trading_provider.dart';
 import '../../../trading/data/repositories/trading_repository.dart';
+import '../../../trading/presentation/widgets/trade_confirmation_dialog.dart';
 import '../../../animals/data/models/animal_models.dart';
 import '../../../animals/providers/animals_provider.dart';
 import '../../../shared/presentation/widgets/custom_button.dart';
@@ -598,8 +599,24 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
       builder: (context) => NftDetailModal(
         trade: trade,
         onPurchase: () async {
-          // TODO: Implement purchase logic
-          Navigator.pop(context);
+          Navigator.pop(context); // Close detail modal first
+          // Show purchase confirmation dialog
+          final success = await showDialog<bool>(
+            context: context,
+            builder: (context) => TradeConfirmationDialog(trade: trade),
+          );
+          
+          if (success == true && mounted) {
+            // Refresh marketplace and owned NFTs after purchase
+            ref.read(marketplaceProvider.notifier).refresh();
+            ref.read(myAnimalsProvider.notifier).getMyAnimals();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Purchase completed successfully!'),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          }
         },
       ),
     );

@@ -253,14 +253,18 @@ class MarketplaceNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
     state = const AsyncValue.loading();
     try {
       final trades = await _repository.getAvailableTrades();
+      // ignore: avoid_print
+      print('✅ marketplaceProvider.getAvailableTrades -> ${trades.length}');
       state = AsyncValue.data(trades);
     } catch (error, stackTrace) {
+      // ignore: avoid_print
+      print('❌ marketplaceProvider.getAvailableTrades error: $error');
       state = AsyncValue.error(error, stackTrace);
     }
   }
 
   /// Search marketplace
-  Future<void> searchMarketplace(String query) async {
+  Future<void> searchMarketplace(String query, {String? species}) async {
     if (query.isEmpty) {
       await getAvailableTrades();
       return;
@@ -268,10 +272,11 @@ class MarketplaceNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
 
     state = const AsyncValue.loading();
     try {
-      final trades = await _repository.searchTrades(query);
-      // Filter only active trades
-      final availableTrades =
-          trades.where((trade) => trade.status == 'ACTIVE').toList();
+      final trades = await _repository.searchTrades(query, species: species);
+      // Server already filters by status=LISTED,ACTIVE; keep extra safety filter
+      final availableTrades = trades
+          .where((trade) => trade.status == 'ACTIVE' || trade.status == 'LISTED' || trade.isActive)
+          .toList();
       state = AsyncValue.data(availableTrades);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);

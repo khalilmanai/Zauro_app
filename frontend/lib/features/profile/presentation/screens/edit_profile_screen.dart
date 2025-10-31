@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/storage_service.dart';
 import '../../../auth/presentation/widgets/avatar_selection_widget.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/data/models/auth_models.dart';
@@ -72,30 +71,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Update in-memory auth state for immediate UX
+      // Call backend to update, then refresh auth state
       final authNotifier = ref.read(authNotifierProvider.notifier);
-      final current = ref.read(authNotifierProvider).user;
-      if (current != null) {
-        final updated = current.copyWith(
-          firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
-          email: _emailController.text.trim(),
-          avatarUrl: _avatarUrl,
-        );
-
-        // Update notifier state via provided helper so persistence is handled consistently
-        await authNotifier.updateLocalUser(updated);
-
-        // Persist avatar url separately for best-effort persistence
-        try {
-          if (updated.avatarUrl != null) {
-            await StorageService.setString(
-                'user_avatar_url', updated.avatarUrl!);
-          } else {
-            await StorageService.remove('user_avatar_url');
-          }
-        } catch (_) {}
-      }
+      await authNotifier.updateProfile(
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        email: _emailController.text.trim(),
+        avatarUrl: _avatarUrl,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context)

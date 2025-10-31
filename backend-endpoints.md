@@ -40,6 +40,31 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
+## ⚠️ Known Response Variations (Dev)
+
+In local/dev builds some endpoints may return a raw JSON array instead of the wrapped ApiResponse shown in Swagger. The frontend accepts both until the backend is standardized.
+
+- Wrapped (preferred):
+```
+{
+  "success": true,
+  "message": "...",
+  "data": [ ... ],
+  "pagination": { ... },
+  "timestamp": "..."
+}
+```
+
+- Raw list (observed for GET /trades):
+```
+[
+  { /* trade */ },
+  { /* trade */ }
+]
+```
+
+---
+
 ## 🔐 Authentication Endpoints (`/auth`)
 
 ### 1. Register User
@@ -528,6 +553,17 @@ vetRecord: File // Required - vet record file
   "timestamp": "2024-01-01T00:00:00.000Z"
 }
 ```
+
+Note: In development, some deployments may return an unwrapped array (no pagination block):
+
+```json
+[
+  { /* trade */ },
+  { /* trade */ }
+]
+```
+
+Clients should handle both forms.
 
 ### 29. Get Trade by ID
 **Endpoint**: `GET /api/v1/trades/{id}`  

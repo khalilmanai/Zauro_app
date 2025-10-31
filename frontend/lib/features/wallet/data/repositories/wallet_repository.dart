@@ -15,7 +15,7 @@ class WalletRepository {
   WalletRepository(this._apiClient);
 
   /// Create a new wallet for the authenticated user
-  Future<WalletResponse> createWallet() async {
+  Future<Wallet> createWallet() async {
     try {
       final request =
           const CreateWalletRequest(); // Empty request, uses auth user
@@ -33,16 +33,14 @@ class WalletRepository {
   }
 
   /// Get the authenticated user's wallet
-  Future<WalletResponse> getMyWallet() async {
+  Future<Wallet> getMyWallet() async {
     try {
-      final response = await _apiClient.getMyWallet();
-
-      if (response.success && response.data != null) {
-        return response.data!;
-      } else {
-        throw ServerFailure(message: response.message);
-      }
+      print('🔍 Repository: Calling getMyWallet API');
+      final wallet = await _apiClient.getMyWallet();
+      print('🔍 Repository: Received wallet ${wallet.id}');
+      return wallet;
     } catch (e) {
+      print('❌ Repository: Exception in getMyWallet: $e');
       if (e is ServerFailure) rethrow;
       throw ServerFailure(message: 'Failed to get wallet: $e');
     }
@@ -51,13 +49,8 @@ class WalletRepository {
   /// Get the authenticated user's wallet balance
   Future<WalletBalance> getMyWalletBalance() async {
     try {
-      // The balance endpoint returns data directly as raw JSON, not wrapped in ApiResponse
-      final rawData = await _apiClient.getMyWalletBalanceRaw();
-
-      print('🔍 Raw balance data: $rawData');
-
-      // Parse the raw JSON directly into WalletBalance
-      final balance = WalletBalance.fromJson(rawData);
+      // The balance endpoint returns WalletBalance directly (unwrapped)
+      final balance = await _apiClient.getMyWalletBalanceRaw();
 
       print('🔍 Balance received: HBAR=${balance.hbar}, ZAU=${balance.zau}');
       print(
@@ -107,7 +100,7 @@ class WalletRepository {
   }
 
   /// Get wallet by ID (for admin/authorized users)
-  Future<WalletResponse> getWallet(String id) async {
+  Future<Wallet> getWallet(String id) async {
     try {
       final response = await _apiClient.getWallet(id);
 
@@ -125,9 +118,8 @@ class WalletRepository {
   /// Get wallet balance by ID (for admin/authorized users)
   Future<WalletBalance> getWalletBalance(String id) async {
     try {
-      // The balance endpoint returns data directly as raw JSON
-      final rawData = await _apiClient.getWalletBalanceRaw(id);
-      final balance = WalletBalance.fromJson(rawData);
+      // The balance endpoint returns WalletBalance directly (unwrapped)
+      final balance = await _apiClient.getWalletBalanceRaw(id);
       return balance;
     } catch (e) {
       if (e is ServerFailure) rethrow;
@@ -203,7 +195,7 @@ class WalletRepository {
   }
 
   /// Create a new wallet with custom initial HBAR balance
-  Future<WalletResponse> createWalletWithBalance({
+  Future<Wallet> createWalletWithBalance({
     required String amount,
   }) async {
     try {

@@ -99,6 +99,31 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
+  // Update profile and refresh auth state
+  Future<void> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? country,
+    String? avatarUrl,
+  }) async {
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      final updated = await repository.updateProfile(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        country: country,
+        avatarUrl: avatarUrl,
+      );
+      if (updated != null) {
+        state = AuthState.authenticated(updated);
+      }
+    } catch (e) {
+      state = AuthState.error(e.toString());
+    }
+  }
+
   // Clear error state
   void clearError() {
     if (state.hasError) {

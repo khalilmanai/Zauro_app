@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../shared/presentation/widgets/custom_button.dart';
 import '../../../shared/presentation/widgets/loading_overlay.dart';
+import '../../data/models/trade_models.dart';
+import '../../providers/trading_provider.dart';
+import '../widgets/trade_confirmation_dialog.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 class TradeDetailScreen extends ConsumerWidget {
   final String tradeId;
@@ -14,6 +19,10 @@ class TradeDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tradeState = ref.watch(tradeProvider(tradeId));
+    final auth = ref.watch(authNotifierProvider);
+    final currentUserId = auth.user?.id;
+
     return Scaffold(
       backgroundColor: AppTheme.grey50,
       appBar: AppBar(
@@ -33,28 +42,84 @@ class TradeDetailScreen extends ConsumerWidget {
         ),
       ),
       body: LoadingOverlay(
-        isLoading: false, // TODO: Connect to actual loading state
-        child: _buildContent(),
+        isLoading: tradeState.isLoading,
+        child: tradeState.when(
+          data: (trade) {
+            if (trade == null) {
+              return Center(
+                child: Text(
+                  'Trade not found',
+                  style: GoogleFonts.poppins(color: AppTheme.errorColor),
+                ),
+              );
+            }
+            final isOwner = currentUserId == trade.sellerId;
+            final canBuy = trade.canBuy && !isOwner;
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildAnimalSection(context, trade),
+                  _buildTradeInfoSection(context, trade),
+                  _buildSellerSection(context, trade),
+                  _buildActionSection(context, ref, trade, canBuy, isOwner),
+                ],
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading trade',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  error.toString(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: AppTheme.grey600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                CustomButton(
+                  text: 'Retry',
+                  onPressed: () => ref
+                      .read(tradeProvider(tradeId).notifier)
+                      .refresh(),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildContent() {
-    // TODO: Replace with actual trade data
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAnimalSection(),
-          _buildTradeInfoSection(),
-          _buildSellerSection(),
-          _buildActionSection(),
-        ],
-      ),
-    );
-  }
+  Widget _buildAnimalSection(BuildContext context, Trade trade) {
+    final animal = trade.animal;
+    if (animal == null) {
+      return Container(
+        color: AppTheme.white,
+        padding: const EdgeInsets.all(20),
+        child: Center(
+          child: Text(
+            'Animal information not available',
+            style: GoogleFonts.poppins(color: AppTheme.grey600),
+          ),
+        ),
+      );
+    }
 
-  Widget _buildAnimalSection() {
     return Container(
       color: AppTheme.white,
       child: Column(
@@ -63,9 +128,17 @@ class TradeDetailScreen extends ConsumerWidget {
             width: double.infinity,
             height: 250,
             color: AppTheme.grey200,
-            child: Center(
-              child: Icon(Icons.pets, size: 80, color: AppTheme.grey400),
-            ),
+            child: animal.imageUrl != null && animal.imageUrl!.isNotEmpty
+                ? Image.network(
+                    animal.imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Center(
+                      child: Icon(Icons.pets, size: 80, color: AppTheme.grey400),
+                    ),
+                  )
+                : Center(
+                    child: Icon(Icons.pets, size: 80, color: AppTheme.grey400),
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(20),
@@ -73,21 +146,31 @@ class TradeDetailScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Animal Name', // TODO: Use actual animal name
+                  animal.name,
                   style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.grey900,
                   ),
                 ),
-                SizedBox(height: 8),
-                Row(
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    _buildInfoChip('Species', 'Dog'),
-                    SizedBox(width: 12),
-                    _buildInfoChip('Breed', 'Golden Retriever'),
-                    SizedBox(width: 12),
-                    _buildInfoChip('Age', '3 years'),
+                    if (animal.species.isNotEmpty)
+                      _buildInfoChip('Species', animal.displaySpecies),
+                    if (animal.breed != null && animal.breed!.isNotEmpty)
+                      _buildInfoChip('Breed', animal.breed!),
+                    if (animal.age != null)
+                      _buildInfoChip(
+                        'Age',
+                        animal.age == 1
+                            ? '1 year'
+                            : '${animal.age} years',
+                      ),
+                    if (animal.gender.isNotEmpty)
+                      _buildInfoChip('Gender', animal.displayGender),
                   ],
                 ),
               ],
@@ -116,7 +199,9 @@ class TradeDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTradeInfoSection() {
+  Widget _buildTradeInfoSection(BuildContext context, Trade trade) {
+    final dateFormat = DateFormat('MMM dd, yyyy');
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -136,14 +221,17 @@ class TradeDetailScreen extends ConsumerWidget {
               color: AppTheme.grey900,
             ),
           ),
-          SizedBox(height: 16),
-          _buildTradeInfo('Price', '250.00 HBAR'),
-          SizedBox(height: 8),
-          _buildTradeInfo('Status', 'Listed'),
-          SizedBox(height: 8),
-          _buildTradeInfo('Listed Date', '2 days ago'),
-          SizedBox(height: 8),
-          _buildTradeInfo('Trade ID', tradeId),
+          const SizedBox(height: 16),
+          _buildTradeInfo('Price', '${trade.price.toStringAsFixed(2)} ${trade.currency}'),
+          const SizedBox(height: 8),
+          _buildTradeInfo('Status', trade.displayStatus),
+          const SizedBox(height: 8),
+          _buildTradeInfo('Listed Date', dateFormat.format(trade.createdAt)),
+          const SizedBox(height: 8),
+          if (trade.completedAt != null)
+            _buildTradeInfo('Completed Date', dateFormat.format(trade.completedAt!)),
+          const SizedBox(height: 8),
+          _buildTradeInfo('Trade ID', trade.id.substring(0, 8) + '...'),
         ],
       ),
     );
@@ -157,19 +245,25 @@ class TradeDetailScreen extends ConsumerWidget {
           label,
           style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.grey600),
         ),
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppTheme.grey900,
+        Flexible(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.grey900,
+            ),
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSellerSection() {
+  Widget _buildSellerSection(BuildContext context, Trade trade) {
+    final seller = trade.seller;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -189,13 +283,13 @@ class TradeDetailScreen extends ConsumerWidget {
               size: 24,
             ),
           ),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Seller Name', // TODO: Use actual seller name
+                  seller != null ? seller.fullName : 'Seller',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -203,7 +297,7 @@ class TradeDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  'seller@example.com', // TODO: Use actual seller email
+                  seller?.email ?? 'N/A',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: AppTheme.grey600,
@@ -232,7 +326,13 @@ class TradeDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionSection() {
+  Widget _buildActionSection(
+    BuildContext context,
+    WidgetRef ref,
+    Trade trade,
+    bool canBuy,
+    bool isOwner,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -250,7 +350,7 @@ class TradeDetailScreen extends ConsumerWidget {
                   color: AppTheme.accentColor,
                   size: 20,
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'This trade will be executed using atomic swaps for maximum security',
@@ -263,15 +363,34 @@ class TradeDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
-          SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: CustomButton(
-              text: 'Buy Now - 250.00 HBAR',
-              onPressed: () => _showBuyConfirmation(),
+          const SizedBox(height: 24),
+          if (canBuy)
+            SizedBox(
+              width: double.infinity,
+              child: CustomButton(
+                text: 'Buy Now - ${trade.price.toStringAsFixed(2)} ${trade.currency}',
+                onPressed: () => _showBuyConfirmation(context, ref, trade),
+              ),
+            )
+          else if (isOwner)
+            SizedBox(
+              width: double.infinity,
+              child: CustomButton(
+                text: 'This is your listing',
+                isOutlined: true,
+                onPressed: null,
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: CustomButton(
+                text: 'Trade ${trade.displayStatus}',
+                isOutlined: true,
+                onPressed: null,
+              ),
             ),
-          ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -280,16 +399,28 @@ class TradeDetailScreen extends ConsumerWidget {
                   isOutlined: true,
                   onPressed: () {
                     // TODO: Implement messaging
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Messaging feature coming soon'),
+                        backgroundColor: AppTheme.grey600,
+                      ),
+                    );
                   },
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: CustomButton(
                   text: 'Share Trade',
                   isOutlined: true,
                   onPressed: () {
                     // TODO: Implement sharing
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Sharing feature coming soon'),
+                        backgroundColor: AppTheme.grey600,
+                      ),
+                    );
                   },
                 ),
               ),
@@ -300,7 +431,19 @@ class TradeDetailScreen extends ConsumerWidget {
     );
   }
 
-  void _showBuyConfirmation() {
-    // TODO: Show buy confirmation dialog and implement purchase flow
+  void _showBuyConfirmation(BuildContext context, WidgetRef ref, Trade trade) {
+    showDialog(
+      context: context,
+      builder: (context) => TradeConfirmationDialog(trade: trade),
+    ).then((success) {
+      if (success == true && context.mounted) {
+        // Refresh trade data after purchase
+        ref.read(tradeProvider(tradeId).notifier).refresh();
+        // Navigate back if needed
+        if (context.canPop()) {
+          context.pop();
+        }
+      }
+    });
   }
 }

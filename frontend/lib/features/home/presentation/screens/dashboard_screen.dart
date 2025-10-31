@@ -14,6 +14,8 @@ import '../../../wallet/data/models/wallet_models.dart';
 import '../../../wallet/providers/wallet_provider.dart';
 import '../../../trading/providers/trading_provider.dart';
 import '../../../trading/data/models/trade_models.dart';
+import '../widgets/dashboard_search_modal.dart';
+import '../widgets/dashboard_filter_modal.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -51,6 +53,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       floatingActionButton: _buildFloatingActionButton(context),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([
@@ -85,7 +88,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   _buildRecentActivitySection(context),
                   const SizedBox(height: 28),
                   _buildMarketplaceSection(context, ref, marketplaceState),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 120),
                 ]),
               ),
             ),
@@ -733,15 +736,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   Widget _buildWalletError(BuildContext context, Object error) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color:
-            isDark ? Colors.red.shade900.withOpacity(0.15) : Colors.red.shade50,
+        color: theme.colorScheme.error.withOpacity(isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.red.withOpacity(0.3),
+          color: theme.colorScheme.error.withOpacity(0.3),
           width: 1.5,
         ),
       ),
@@ -749,7 +752,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         children: [
           Icon(
             Icons.error_outline_rounded,
-            color: Colors.red,
+            color: theme.colorScheme.error,
             size: 48,
           ),
           const SizedBox(height: 16),
@@ -787,8 +790,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -1225,7 +1228,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               // Search button
                               IconButton(
                                 onPressed: () {
-                                  // TODO: Open search modal
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => const DashboardSearchModal(),
+                                  );
                                   HapticFeedback.lightImpact();
                                 },
                                 icon: Icon(
@@ -1255,7 +1261,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               // Filter button
                               IconButton(
                                 onPressed: () {
-                                  // TODO: Open filter modal
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => const DashboardFilterModal(),
+                                  );
                                   HapticFeedback.lightImpact();
                                 },
                                 icon: Icon(
@@ -1378,7 +1387,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to trade details
+        context.push('/marketplace/trade/${trade.id}');
         HapticFeedback.lightImpact();
       },
       child: Container(
@@ -1852,20 +1861,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   Widget _buildMarketplaceError(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
 
     return Container(
       padding: const EdgeInsets.all(48),
       decoration: BoxDecoration(
-        color:
-            isDark ? Colors.red.shade900.withOpacity(0.15) : Colors.red.shade50,
+        color: theme.colorScheme.error.withOpacity(isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.red.withOpacity(0.3),
+          color: theme.colorScheme.error.withOpacity(0.3),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withOpacity(0.1),
+            color: theme.colorScheme.error.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -1876,12 +1885,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
+              color: theme.colorScheme.error.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.error_outline_rounded,
-              color: Colors.red,
+              color: theme.colorScheme.error,
               size: 56,
             ),
           ),
@@ -1918,8 +1927,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onError,
               padding: const EdgeInsets.symmetric(
                 horizontal: 28,
                 vertical: 16,

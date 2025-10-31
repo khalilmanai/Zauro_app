@@ -1,18 +1,23 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/widgets/premium_card.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../shared/presentation/widgets/custom_button.dart';
 import '../../../shared/presentation/widgets/custom_text_field.dart';
 import '../../../shared/presentation/widgets/loading_overlay.dart';
 import '../../providers/animals_provider.dart';
 import '../../data/models/animal_models.dart';
+import 'package:dio/dio.dart';
 
 class AddAnimalScreen extends ConsumerStatefulWidget {
   const AddAnimalScreen({super.key});
@@ -30,7 +35,11 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
 
   String? _selectedSpecies;
   String? _selectedGender;
-  final bool _isLoading = false;
+  File? _selectedImage;
+  File? _selectedVetRecord;
+  double? _aiPredictionValue;
+  bool _isPredicting = false;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void dispose() {
@@ -52,25 +61,34 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
           next.isLoading == false) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Animal created successfully! NFT has been minted.'),
+            content: const Text(
+              'Animal posted successfully! It is now pending expert review. You will be notified once it\'s approved.',
+            ),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
+            duration: const Duration(seconds: 4),
           ),
         );
-        context.pop();
+        // Navigate to My Animals screen
+        context.go('/animals');
       }
       if (next.hasError) {
+        final errorMessage = next.error
+            .toString()
+            .replaceFirst('Exception: ', '')
+            .replaceFirst('ServerFailure: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${next.error}'),
+            content: Text('Error: $errorMessage'),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -78,6 +96,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.grey50,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(
           'Add Animal',
@@ -127,7 +146,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
         ],
       ),
       body: LoadingOverlay(
-        isLoading: _isLoading || animalsState.isLoading,
+        isLoading: animalsState.isLoading,
         child: SingleChildScrollView(
           padding: EdgeInsets.all(isDesktop ? 32 : 24),
           child: Column(
@@ -140,6 +159,12 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
               _buildBasicInfoSection(),
               SizedBox(height: isDesktop ? 32 : 24),
               _buildDescriptionSection(),
+              SizedBox(height: isDesktop ? 32 : 24),
+              _buildVetRecordSection(),
+              if (_aiPredictionValue != null) ...[
+                SizedBox(height: isDesktop ? 32 : 24),
+                _buildAIPredictionCard(),
+              ],
               SizedBox(height: isDesktop ? 40 : 32),
               _buildSubmitButton(),
             ],
@@ -172,10 +197,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
                   color: Colors.white,
                   size: isDesktop ? 48 : 40,
                 ),
-              ).animate(delay: Duration(milliseconds: 100)).scale(
-                  duration: AppTheme.mediumAnimation,
-                  begin: Offset(0.7, 0.7),
-                  end: Offset(1.0, 1.0)),
+              ),
 
               SizedBox(height: isDesktop ? 20 : 16),
 
@@ -186,10 +208,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
                   fontWeight: FontWeight.bold,
                   color: AppTheme.getPrimaryColor(context),
                 ),
-              )
-                  .animate(delay: Duration(milliseconds: 200))
-                  .fadeIn(duration: AppTheme.mediumAnimation)
-                  .slideY(begin: 0.3, end: 0),
+              ),
 
               SizedBox(height: isDesktop ? 12 : 8),
 
@@ -201,10 +220,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
                   color: AppTheme.grey600,
                   height: 1.4,
                 ),
-              )
-                  .animate(delay: Duration(milliseconds: 300))
-                  .fadeIn(duration: AppTheme.mediumAnimation)
-                  .slideY(begin: 0.3, end: 0),
+              ),
 
               SizedBox(height: 16),
 
@@ -221,10 +237,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
                   _buildFeaturePill(
                       'Ownership', Icons.vpn_key, AppTheme.warning),
                 ],
-              )
-                  .animate(delay: Duration(milliseconds: 400))
-                  .fadeIn(duration: AppTheme.mediumAnimation)
-                  .scaleXY(begin: 0.8, end: 1.0),
+              ),
             ],
           ),
         ),
@@ -297,41 +310,70 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
                 width: 2,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(30),
+            child: _selectedImage != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          _selectedImage!,
+                          fit: BoxFit.cover,
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.edit,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Icon(
+                          Icons.camera_alt,
+                          color: AppTheme.primaryColor,
+                          size: 30,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Tap to add photo',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.grey600,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Recommended: High-quality image',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: AppTheme.grey500,
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    color: AppTheme.primaryColor,
-                    size: 30,
-                  ),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Tap to add photo',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.grey600,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Recommended: High-quality image',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: AppTheme.grey500,
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ],
@@ -408,6 +450,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
             setState(() {
               _selectedSpecies = value;
             });
+            _tryPredictAI();
           },
           validator: (value) {
             if (value == null) {
@@ -419,66 +462,91 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
 
         SizedBox(height: 16),
 
-        // Gender Dropdown
-        DropdownButtonFormField<String>(
-          initialValue: _selectedGender,
-          decoration: InputDecoration(
-            labelText: 'Gender',
-            hintText: 'Select gender',
-            prefixIcon: Icon(
-              Icons.pets,
-              color: AppTheme.grey500,
-              size: 20,
-            ),
-            filled: true,
-            fillColor: AppTheme.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.grey300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.grey300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: AppTheme.primaryColor,
-                width: 2,
+        // Gender Radio Buttons
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Gender',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.grey700,
               ),
             ),
-            labelStyle: GoogleFonts.poppins(
-              color: AppTheme.grey700,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          items: AppConfig.animalGenders.map((gender) {
-            return DropdownMenuItem(
-              value: gender,
-              child: Text(
-                gender.toLowerCase().replaceFirst(
-                      gender[0],
-                      gender[0].toUpperCase(),
-                    ),
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  color: AppTheme.grey900,
+            SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _selectedGender != null
+                      ? AppTheme.primaryColor
+                      : AppTheme.grey300,
+                  width: _selectedGender != null ? 2 : 1,
                 ),
               ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              _selectedGender = value;
-            });
-          },
-          validator: (value) {
-            if (value == null) {
-              return 'Please select a gender';
-            }
-            return null;
-          },
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<String>(
+                      value: 'MALE',
+                      groupValue: _selectedGender,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedGender = value;
+                          _tryPredictAI();
+                        });
+                      },
+                      title: Text(
+                        'Male',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: AppTheme.grey900,
+                        ),
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  Expanded(
+                    child: RadioListTile<String>(
+                      value: 'FEMALE',
+                      groupValue: _selectedGender,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedGender = value;
+                          _tryPredictAI();
+                        });
+                      },
+                      title: Text(
+                        'Female',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: AppTheme.grey900,
+                        ),
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_formKey.currentState?.validate() == false &&
+                _selectedGender == null)
+              Padding(
+                padding: EdgeInsets.only(top: 8, left: 12),
+                child: Text(
+                  'Please select a gender',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: AppTheme.error,
+                  ),
+                ),
+              ),
+          ],
         ),
 
         SizedBox(height: 16),
@@ -583,6 +651,162 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
     );
   }
 
+  Widget _buildVetRecordSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Vet Record (Optional)',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.grey900,
+          ),
+        ),
+        SizedBox(height: 12),
+        GestureDetector(
+          onTap: _selectVetRecord,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _selectedVetRecord != null
+                  ? AppTheme.success.withValues(alpha: 0.1)
+                  : AppTheme.grey100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _selectedVetRecord != null
+                    ? AppTheme.success
+                    : AppTheme.grey300,
+                width: 2,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _selectedVetRecord != null
+                      ? Icons.description
+                      : Icons.upload_file,
+                  color: _selectedVetRecord != null
+                      ? AppTheme.success
+                      : AppTheme.grey600,
+                  size: 24,
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedVetRecord != null
+                            ? _selectedVetRecord!.path.split('/').last
+                            : 'Tap to upload vet record',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _selectedVetRecord != null
+                              ? AppTheme.success
+                              : AppTheme.grey700,
+                        ),
+                      ),
+                      if (_selectedVetRecord == null)
+                        Text(
+                          'PDF or document file',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppTheme.grey500,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (_selectedVetRecord != null)
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedVetRecord = null;
+                      });
+                    },
+                    icon: Icon(Icons.close, color: AppTheme.error),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAIPredictionCard() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryColor.withValues(alpha: 0.1),
+            AppTheme.primaryColor.withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+          width: 2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.auto_awesome,
+              color: AppTheme.primaryColor,
+              size: 24,
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI Predicted Value',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.grey600,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '${_aiPredictionValue!.toStringAsFixed(2)} HBAR',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isPredicting)
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSubmitButton() {
     return Column(
       children: [
@@ -602,7 +826,7 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
               SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Your animal will be minted as an NFT on Hedera Hashgraph',
+                  'Your animal will be reviewed by an expert before NFT minting',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: AppTheme.primaryColor,
@@ -615,10 +839,15 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
         SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
-          child: CustomButton(
-            text: 'Register Animal & Mint NFT',
-            onPressed: _handleSubmit,
-            isLoading: _isLoading,
+          child: Consumer(
+            builder: (context, ref, _) {
+              final isLoading = ref.watch(myAnimalsProvider).isLoading;
+              return CustomButton(
+                text: 'Post Animal',
+                onPressed: isLoading ? null : _handleSubmit,
+                isLoading: isLoading,
+              );
+            },
           ),
         ),
       ],
@@ -632,19 +861,19 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: Icon(Icons.photo_camera),
-              title: Text('Take Photo'),
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Take Photo'),
               onTap: () {
-                context.pop();
-                // TODO: Implement camera functionality
+                Navigator.pop(context);
+                _pickImageFromCamera();
               },
             ),
             ListTile(
-              leading: Icon(Icons.photo_library),
-              title: Text('Choose from Gallery'),
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
               onTap: () {
-                context.pop();
-                // TODO: Implement gallery selection
+                Navigator.pop(context);
+                _pickImageFromGallery();
               },
             ),
           ],
@@ -653,10 +882,193 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
     );
   }
 
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+        _tryPredictAI();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to take photo: $e'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+        _tryPredictAI();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick image: $e'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
+  }
+
+  void _selectVetRecord() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.description),
+              title: const Text('Upload Document'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickVetRecord();
+              },
+            ),
+            if (_selectedVetRecord != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: AppTheme.error),
+                title: const Text('Remove Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedVetRecord = null;
+                  });
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickVetRecord() async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+      );
+
+      // For PDF, we'd typically use file_picker, but for now allow image selection
+      // In production, use file_picker package for PDF support
+      if (pickedFile != null) {
+        setState(() {
+          _selectedVetRecord = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick file: $e'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _tryPredictAI() async {
+    // Only predict if both species and image are available
+    if (_selectedSpecies == null || _selectedImage == null) {
+      return;
+    }
+
+    setState(() {
+      _isPredicting = true;
+    });
+
+    try {
+      // Call AI prediction endpoint
+      // Note: This endpoint might need to be added to the API client
+      // For now, we'll use a mock or skip if endpoint doesn't exist
+      final dio = ref.read(dioProvider);
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          _selectedImage!.path,
+          filename: _selectedImage!.path.split('/').last,
+        ),
+        'species': _selectedSpecies,
+        if (_selectedGender != null) 'gender': _selectedGender,
+      });
+
+      try {
+        final response = await dio.post(
+          '/ai/predict',
+          data: formData,
+          options: Options(
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          ),
+        );
+
+        if (response.statusCode == 200 && mounted) {
+          final data = response.data;
+          final predictedPrice = data['predicted_market_price'] ??
+              data['market_price'] ??
+              data['price'];
+
+          if (predictedPrice != null) {
+            setState(() {
+              _aiPredictionValue = (predictedPrice is num)
+                  ? predictedPrice.toDouble()
+                  : double.tryParse(predictedPrice.toString());
+            });
+          }
+        }
+      } catch (e) {
+        // AI endpoint might not be available, silently fail
+        debugPrint('AI prediction not available: $e');
+      }
+    } catch (e) {
+      debugPrint('Error predicting AI value: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPredicting = false;
+        });
+      }
+    }
+  }
+
   void _handleSubmit() async {
-    if (_formKey.currentState!.validate() &&
-        _selectedSpecies != null &&
-        _selectedGender != null) {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedSpecies == null || _selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please fill in all required fields.'),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
       final createRequest = CreateAnimalRequest(
         name: _nameController.text.trim(),
         species: _selectedSpecies!,
@@ -672,9 +1084,26 @@ class _AddAnimalScreenState extends ConsumerState<AddAnimalScreen> {
             : null,
       );
 
-      ref.read(myAnimalsProvider.notifier).createAnimal(
-            request: createRequest,
+      // Create animal with AI prediction value if available
+      final finalRequest = CreateAnimalRequest(
+        name: createRequest.name,
+        species: createRequest.species,
+        breed: createRequest.breed,
+        age: createRequest.age,
+        gender: createRequest.gender,
+        description: createRequest.description,
+        aiPredictionValue: _aiPredictionValue,
+      );
+
+      // Create animal - the provider will handle loading state
+      await ref.read(myAnimalsProvider.notifier).createAnimal(
+            request: finalRequest,
+            imageFile: _selectedImage,
+            vetRecordFile: _selectedVetRecord,
           );
+    } catch (e) {
+      // Error is already handled by the listener above
+      debugPrint('Error creating animal: $e');
     }
   }
 

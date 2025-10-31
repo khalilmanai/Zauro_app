@@ -3,6 +3,63 @@
 part of 'api_client.dart';
 
 // **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+ApiResponse<T> _$ApiResponseFromJson<T>(
+  Map<String, dynamic> json,
+  T Function(Object? json) fromJsonT,
+) =>
+    ApiResponse<T>(
+      success: json['success'] as bool,
+      message: json['message'] as String,
+      data: _$nullableGenericFromJson(json['data'], fromJsonT),
+      timestamp: json['timestamp'] as String,
+    );
+
+Map<String, dynamic> _$ApiResponseToJson<T>(
+  ApiResponse<T> instance,
+  Object? Function(T value) toJsonT,
+) =>
+    <String, dynamic>{
+      'success': instance.success,
+      'message': instance.message,
+      'data': _$nullableGenericToJson(instance.data, toJsonT),
+      'timestamp': instance.timestamp,
+    };
+
+T? _$nullableGenericFromJson<T>(
+  Object? input,
+  T Function(Object? json) fromJson,
+) =>
+    input == null ? null : fromJson(input);
+
+Object? _$nullableGenericToJson<T>(
+  T? input,
+  Object? Function(T value) toJson,
+) =>
+    input == null ? null : toJson(input);
+
+PaginatedResponse<T> _$PaginatedResponseFromJson<T>(
+  Map<String, dynamic> json,
+  T Function(Object? json) fromJsonT,
+) =>
+    PaginatedResponse<T>(
+      data: (json['data'] as List<dynamic>).map(fromJsonT).toList(),
+      pagination:
+          PaginationInfo.fromJson(json['pagination'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$PaginatedResponseToJson<T>(
+  PaginatedResponse<T> instance,
+  Object? Function(T value) toJsonT,
+) =>
+    <String, dynamic>{
+      'data': instance.data.map(toJsonT).toList(),
+      'pagination': instance.pagination,
+    };
+
+// **************************************************************************
 // RetrofitGenerator
 // **************************************************************************
 
@@ -319,7 +376,7 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<PaginatedResponse<Animal>>> getAnimals(
+  Future<HttpResponse<dynamic>> getAnimals(
     int page,
     int limit,
     String? ownerId,
@@ -333,38 +390,60 @@ class _ApiClient implements ApiClient {
     queryParameters.removeWhere((k, v) => v == null);
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options =
-        _setStreamType<ApiResponse<PaginatedResponse<Animal>>>(Options(
+    final _options = _setStreamType<HttpResponse<dynamic>>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
     )
-            .compose(
-              _dio.options,
-              '/animals',
-              queryParameters: queryParameters,
-              data: _data,
-            )
-            .copyWith(
-                baseUrl: _combineBaseUrls(
-              _dio.options.baseUrl,
-              baseUrl,
-            )));
-    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<PaginatedResponse<Animal>> _value;
-    try {
-      _value = ApiResponse<PaginatedResponse<Animal>>.fromJson(
-        _result.data!,
-        (json) => PaginatedResponse<Animal>.fromJson(
-          json as Map<String, dynamic>,
-          (json) => Animal.fromJson(json as Map<String, dynamic>),
-        ),
-      );
-    } on Object catch (e, s) {
-      errorLogger?.logError(e, s, _options);
-      rethrow;
-    }
-    return _value;
+        .compose(
+          _dio.options,
+          '/animals',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
+    final httpResponse = HttpResponse(_value, _result);
+    return httpResponse;
+  }
+
+  @override
+  Future<HttpResponse<dynamic>> getMyAnimals(
+    int page,
+    int limit,
+  ) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{
+      r'page': page,
+      r'limit': limit,
+    };
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<HttpResponse<dynamic>>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/animals/my',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
+    final httpResponse = HttpResponse(_value, _result);
+    return httpResponse;
   }
 
   @override
@@ -832,14 +911,13 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<WalletResponse>> createWallet(
-      CreateWalletRequest request) async {
+  Future<ApiResponse<Wallet>> createWallet(CreateWalletRequest request) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     final _data = <String, dynamic>{};
     _data.addAll(request.toJson());
-    final _options = _setStreamType<ApiResponse<WalletResponse>>(Options(
+    final _options = _setStreamType<ApiResponse<Wallet>>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
@@ -856,11 +934,11 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<WalletResponse> _value;
+    late ApiResponse<Wallet> _value;
     try {
-      _value = ApiResponse<WalletResponse>.fromJson(
+      _value = ApiResponse<Wallet>.fromJson(
         _result.data!,
-        (json) => WalletResponse.fromJson(json as Map<String, dynamic>),
+        (json) => Wallet.fromJson(json as Map<String, dynamic>),
       );
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
@@ -870,12 +948,12 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<WalletResponse>> getMyWallet() async {
+  Future<Wallet> getMyWallet() async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<ApiResponse<WalletResponse>>(Options(
+    final _options = _setStreamType<Wallet>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -892,12 +970,9 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<WalletResponse> _value;
+    late Wallet _value;
     try {
-      _value = ApiResponse<WalletResponse>.fromJson(
-        _result.data!,
-        (json) => WalletResponse.fromJson(json as Map<String, dynamic>),
-      );
+      _value = Wallet.fromJson(_result.data!);
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
       rethrow;
@@ -906,12 +981,12 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<Map<String, dynamic>> getMyWalletBalanceRaw() async {
+  Future<WalletBalance> getMyWalletBalanceRaw() async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<Map<String, dynamic>>(Options(
+    final _options = _setStreamType<WalletBalance>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -928,9 +1003,9 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late Map<String, dynamic> _value;
+    late WalletBalance _value;
     try {
-      _value = _result.data!;
+      _value = WalletBalance.fromJson(_result.data!);
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
       rethrow;
@@ -939,12 +1014,12 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<WalletResponse>> getWallet(String id) async {
+  Future<ApiResponse<Wallet>> getWallet(String id) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<ApiResponse<WalletResponse>>(Options(
+    final _options = _setStreamType<ApiResponse<Wallet>>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -961,11 +1036,11 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<WalletResponse> _value;
+    late ApiResponse<Wallet> _value;
     try {
-      _value = ApiResponse<WalletResponse>.fromJson(
+      _value = ApiResponse<Wallet>.fromJson(
         _result.data!,
-        (json) => WalletResponse.fromJson(json as Map<String, dynamic>),
+        (json) => Wallet.fromJson(json as Map<String, dynamic>),
       );
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
@@ -975,12 +1050,12 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<Map<String, dynamic>> getWalletBalanceRaw(String id) async {
+  Future<WalletBalance> getWalletBalanceRaw(String id) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<Map<String, dynamic>>(Options(
+    final _options = _setStreamType<WalletBalance>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -997,9 +1072,9 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late Map<String, dynamic> _value;
+    late WalletBalance _value;
     try {
-      _value = _result.data!;
+      _value = WalletBalance.fromJson(_result.data!);
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
       rethrow;
@@ -1122,14 +1197,14 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<ApiResponse<WalletResponse>> createWalletWithBalance(
+  Future<ApiResponse<Wallet>> createWalletWithBalance(
       FundAccountRequest request) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     final _data = <String, dynamic>{};
     _data.addAll(request.toJson());
-    final _options = _setStreamType<ApiResponse<WalletResponse>>(Options(
+    final _options = _setStreamType<ApiResponse<Wallet>>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
@@ -1146,11 +1221,11 @@ class _ApiClient implements ApiClient {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late ApiResponse<WalletResponse> _value;
+    late ApiResponse<Wallet> _value;
     try {
-      _value = ApiResponse<WalletResponse>.fromJson(
+      _value = ApiResponse<Wallet>.fromJson(
         _result.data!,
-        (json) => WalletResponse.fromJson(json as Map<String, dynamic>),
+        (json) => Wallet.fromJson(json as Map<String, dynamic>),
       );
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);

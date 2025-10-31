@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'theme_tokens.dart';
 
 enum GradientDirection {
   topLeft(Alignment.topLeft, Alignment.bottomRight),
@@ -165,6 +166,9 @@ class AppTheme {
         onSurfaceVariant: lightMutedForeground,
       ),
       scaffoldBackgroundColor: lightBackground,
+      extensions: <ThemeExtension<dynamic>>[
+        AppTokens.defaultLight,
+      ],
 
       // Text Theme
       textTheme: GoogleFonts.poppinsTextTheme().copyWith(
@@ -448,6 +452,9 @@ class AppTheme {
         onSurfaceVariant: darkMutedForeground,
       ),
       scaffoldBackgroundColor: darkBackground,
+      extensions: <ThemeExtension<dynamic>>[
+        AppTokens.defaultDark,
+      ],
 
       // Text Theme
       textTheme: GoogleFonts.poppinsTextTheme().copyWith(
@@ -708,6 +715,17 @@ class AppTheme {
         size: 24,
       ),
     );
+  }
+
+  // Build theme with optional seed color (Material 3 dynamic feel)
+  static ThemeData themed({required bool isDark, Color? seedColor}) {
+    final base = isDark ? darkTheme : lightTheme;
+    if (seedColor == null) return base;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+    );
+    return base.copyWith(colorScheme: scheme);
   }
 
   // Helper methods for getting colors based on theme

@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../../../core/services/biometric_auth_service.dart';
+import 'package:zauro_marketplace/features/wallet/data/models/wallet_models.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../auth/data/repositories/auth_repository.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../shared/presentation/widgets/loading_overlay.dart';
 import '../../providers/wallet_provider.dart';
-import '../widgets/transfer_hbar_dialog.dart';
 import '../widgets/receive_qr_dialog.dart';
 import '../widgets/fund_wallet_dialog.dart';
 import '../widgets/enhanced_send_dialog.dart';
 import '../widgets/qr_scanner_widget.dart';
-import 'transaction_history_screen.dart';
 import 'nft_marketplace_screen.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
@@ -21,101 +24,128 @@ class WalletScreen extends ConsumerStatefulWidget {
   ConsumerState<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends ConsumerState<WalletScreen>
-    with SingleTickerProviderStateMixin, _WalletScreenMixin {
+class _WalletScreenState extends ConsumerState<WalletScreen> {
+  bool _isAuthorized = false;
+  bool _authAttempted = false;
+  final TextEditingController _passwordController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
-    _initializeAnimations();
+    // Require biometric authentication to access wallet
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _authenticateAndLoad();
+    });
+  }
 
-    // Load wallet data on initialization
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _authenticateAndLoad() async {
+    final auth = BiometricAuthService();
+    final ok =
+        await auth.authenticate(reason: 'Authenticate to access your wallet');
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _authAttempted = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Access denied')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isAuthorized = true;
+      _authAttempted = true;
+    });
+
+    // Load wallet data on successful authorization
     Future.microtask(() {
+      print('🚀 WalletScreen initState - Loading wallet data...');
       ref.read(walletProvider.notifier).getMyWallet();
       ref.read(walletBalanceProvider.notifier).getBalance();
       ref.read(didProvider.notifier).getMyDid();
     });
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
+  Future<void> _authenticateWithPassword() async {
+    final authState = ref.read(authNotifierProvider);
+    final email = authState.user?.email;
+    if (email == null || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No account email available')),
+      );
+      return;
+    }
+
+    final password = _passwordController.text.trim();
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter your account password')),
+      );
+      return;
+    }
+
+    // Attempt non-destructive password verification
+    final repository = ref.read(authRepositoryProvider);
+    final ok =
+        await repository.verifyPassword(email: email, password: password);
+    if (ok) {
+      if (!mounted) return;
+      Navigator.of(context).maybePop();
+      setState(() {
+        _isAuthorized = true;
+        _authAttempted = true;
+      });
+      // Load after password verification
+      await _refreshWallet();
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password verification failed')),
+      );
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
-
-    final walletState = ref.watch(walletProvider);
-    final balanceState = ref.watch(walletBalanceProvider);
-    final didState = ref.watch(didProvider);
-
-    final isLoading =
-        walletState.isLoading || balanceState.isLoading || didState.isLoading;
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: LoadingOverlay(
-        isLoading: isLoading,
-        child: RefreshIndicator(
-          onRefresh: _refreshWallet,
-          color: theme.colorScheme.primary,
-          strokeWidth: 2.0,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            slivers: [
-              _WalletAppBar(
-                balanceState: balanceState,
-                isTablet: isTablet,
-              ),
-              SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: _WalletContent(
-                    walletState: walletState,
-                    balanceState: balanceState,
-                    didState: didState,
-                    isTablet: isTablet,
-                    onRefresh: _refreshWallet,
-                    onShowFundDialog: _showFundDialog,
-                    onShowSendDialog: _showEnhancedSendDialog,
-                    onShowReceiveDialog: _showReceiveDialog,
-                    onShowNFTMarketplace: _showNFTMarketplace,
-                    onShowTransactionHistory: _showTransactionHistory,
-                  ),
+  void _showPasswordDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Verify with Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Account password',
                 ),
               ),
             ],
           ),
-        ),
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              onPressed: _authenticateWithPassword,
+              icon: const Icon(Icons.lock_open_rounded),
+              label: const Text('Verify'),
+            ),
+          ],
+        );
+      },
     );
-  }
-}
-
-// Mixin to separate business logic from UI
-mixin _WalletScreenMixin on ConsumerState<WalletScreen> {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  bool _balanceVisible = true;
-
-  void _initializeAnimations() {
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this as TickerProvider,
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    );
-    _animationController.forward();
   }
 
   Future<void> _refreshWallet() async {
+    print('🔄 WalletScreen - Refreshing wallet data...');
     await Future.wait([
       ref.read(walletProvider.notifier).refresh(),
       ref.read(walletBalanceProvider.notifier).refresh(),
@@ -123,50 +153,10 @@ mixin _WalletScreenMixin on ConsumerState<WalletScreen> {
     ]);
   }
 
-  void _copyToClipboard(String label, String value) {
-    final theme = Theme.of(context);
-
-    Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Text(
-              '$label copied!',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.success,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  String _maskString(String str, int startChars, int endChars) {
-    if (str.length <= startChars + endChars) return str;
-    return '${str.substring(0, startChars)}...${str.substring(str.length - endChars)}';
-  }
-
   void _showReceiveDialog() {
     final wallet = ref.read(walletProvider).value;
-
     if (wallet == null) {
-      // Show error if wallet is not loaded
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Wallet not loaded. Please try again.'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      print('❌ Cannot show receive dialog - no wallet');
       return;
     }
 
@@ -180,15 +170,8 @@ mixin _WalletScreenMixin on ConsumerState<WalletScreen> {
 
   void _showFundDialog() {
     final wallet = ref.read(walletProvider).value;
-
     if (wallet == null) {
-      // Show error if wallet is not loaded
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Wallet not loaded. Please try again.'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      print('❌ Cannot show fund dialog - no wallet');
       return;
     }
 
@@ -201,17 +184,10 @@ mixin _WalletScreenMixin on ConsumerState<WalletScreen> {
     );
   }
 
-  void _showEnhancedSendDialog() {
+  void _showSendDialog() {
     final wallet = ref.read(walletProvider).value;
-
     if (wallet == null) {
-      // Show error if wallet is not loaded
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Wallet not loaded. Please try again.'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      print('❌ Cannot show send dialog - no wallet');
       return;
     }
 
@@ -238,215 +214,171 @@ mixin _WalletScreenMixin on ConsumerState<WalletScreen> {
       ),
     );
   }
-}
 
-// App Bar Widget
-class _WalletAppBar extends ConsumerWidget {
-  final AsyncValue balanceState;
-  final bool isTablet;
-
-  const _WalletAppBar({
-    required this.balanceState,
-    required this.isTablet,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final cardColor = AppTheme.getCardBackground(context);
-
-    return SliverAppBar(
-      expandedHeight: isTablet ? 280 : 240,
-      floating: false,
-      pinned: true,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      elevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.scaffoldBackgroundColor,
-                cardColor.withOpacity(0.3),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: balanceState.when(
-              data: (balance) => _BalanceHeader(
-                balance: balance,
-                isTablet: isTablet,
-              ),
-              loading: () => const _LoadingHeader(),
-              error: (_, __) => const _ErrorHeader(),
-            ),
-          ),
-        ),
-        titlePadding: EdgeInsets.zero,
-        title: _AppBarTitle(isTablet: isTablet),
-      ),
-      actions: const [SizedBox.shrink()],
-    );
-  }
-}
-
-// App Bar Title Widget
-class _AppBarTitle extends StatelessWidget {
-  final bool isTablet;
-
-  const _AppBarTitle({required this.isTablet});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isTablet ? 24 : 20,
-        vertical: isTablet ? 16 : 12,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.scaffoldBackgroundColor,
-            theme.scaffoldBackgroundColor.withOpacity(0),
-          ],
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Wallet',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontSize: isTablet ? 20 : 17,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const _AppBarActions(),
-        ],
-      ),
-    );
-  }
-}
-
-// App Bar Actions Widget
-class _AppBarActions extends ConsumerWidget {
-  const _AppBarActions();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Row(
-      children: [
-        _HeaderIconButton(
-          icon: Icons.notifications_outlined,
-          onTap: () {},
-          isTablet: isTablet,
-          isDark: isDark,
-        ),
-        SizedBox(width: isTablet ? 12 : 8),
-        _HeaderIconButton(
-          icon: Icons.qr_code_scanner_rounded,
-          onTap: () => _openQrScanner(context),
-          isTablet: isTablet,
-          isDark: isDark,
-        ),
-      ],
-    );
-  }
-
-  void _openQrScanner(BuildContext context) {
-    // Import the QrScannerWidget
+  void _openQrScanner() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => QrScannerWidget(
           title: 'Scan QR Code',
           onScanned: (code) {
-            _handleScannedCode(context, code);
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('QR Code Scanned'),
+                content: Text('Code: $code'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Code copied to clipboard'),
+                        ),
+                      );
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Copy'),
+                  ),
+                ],
+              ),
+            );
           },
         ),
       ),
     );
   }
 
-  void _handleScannedCode(BuildContext context, String code) {
-    // Show options dialog for scanned code
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('QR Code Scanned'),
-        content: Text('Code: $code'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+  @override
+  Widget build(BuildContext context) {
+    if (!_isAuthorized) {
+      return Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          title: const Text('Wallet'),
+        ),
+        body: Center(
+          child: _authAttempted
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline_rounded, size: 48),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Wallet locked',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Authenticate to access your wallet',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _authenticateAndLoad,
+                      icon: const Icon(Icons.fingerprint_rounded),
+                      label: const Text('Unlock Wallet'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _showPasswordDialog,
+                      child: const Text('Use password instead'),
+                    ),
+                  ],
+                )
+              : const CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    final isTablet = size.width > 600;
+
+    final walletState = ref.watch(walletProvider);
+    final balanceState = ref.watch(walletBalanceProvider);
+    final didState = ref.watch(didProvider);
+
+    final isLoading =
+        walletState.isLoading && balanceState.isLoading && didState.isLoading;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
+          'Wallet',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
           ),
-          TextButton(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: code));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Code copied to clipboard'),
-                  backgroundColor: AppTheme.success,
-                ),
-              );
-              Navigator.pop(context);
-            },
-            child: const Text('Copy'),
+        ),
+        actions: [
+          IconButton(
+            onPressed: _openQrScanner,
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            tooltip: 'Scan QR',
           ),
         ],
       ),
-    );
-  }
-}
-
-// Header Icon Button Widget
-class _HeaderIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isTablet;
-  final bool isDark;
-
-  const _HeaderIconButton({
-    required this.icon,
-    required this.onTap,
-    required this.isTablet,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final borderColor = AppTheme.getBorderColorFromContext(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: EdgeInsets.all(isTablet ? 10 : 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.onSurface.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: borderColor,
-              width: 1,
+      body: LoadingOverlay(
+        isLoading: isLoading,
+        child: RefreshIndicator(
+          onRefresh: _refreshWallet,
+          child: ListView(
+            padding: EdgeInsets.only(
+              left: isTablet ? 24 : 20,
+              right: isTablet ? 24 : 20,
+              top: isTablet ? 16 : 12,
+              bottom: 100,
             ),
-          ),
-          child: Icon(
-            icon,
-            color: theme.colorScheme.onSurface.withOpacity(0.9),
-            size: isTablet ? 22 : 20,
+            children: [
+              // Balance Header
+              _BalanceHeader(
+                balanceState: balanceState,
+                walletState: walletState,
+                isTablet: isTablet,
+              ),
+
+              SizedBox(height: isTablet ? 28 : 24),
+
+              // Quick Actions
+              _QuickActions(
+                isTablet: isTablet,
+                onShowFundDialog: _showFundDialog,
+                onShowSendDialog: _showSendDialog,
+                onShowReceiveDialog: _showReceiveDialog,
+                onShowNFTMarketplace: _showNFTMarketplace,
+                onShowTransactionHistory: _showTransactionHistory,
+              ),
+
+              SizedBox(height: isTablet ? 28 : 24),
+
+              // Assets Section
+              _AssetsSection(
+                balanceState: balanceState,
+                isTablet: isTablet,
+                onRefresh: _refreshWallet,
+              ),
+
+              SizedBox(height: isTablet ? 24 : 20),
+
+              // Wallet Details
+              _WalletDetailsSection(
+                walletState: walletState,
+                didState: didState,
+                isTablet: isTablet,
+              ),
+
+              SizedBox(height: isTablet ? 24 : 20),
+
+              // Transactions Card
+              _TransactionsCard(isTablet: isTablet),
+            ],
           ),
         ),
       ),
@@ -454,225 +386,670 @@ class _HeaderIconButton extends StatelessWidget {
   }
 }
 
-// Balance Header Widget
-class _BalanceHeader extends ConsumerStatefulWidget {
-  final dynamic balance;
+// Balance Header with Public Key Display
+class _BalanceHeader extends ConsumerWidget {
+  final AsyncValue<WalletBalance?> balanceState;
+  final AsyncValue<Wallet?> walletState;
   final bool isTablet;
 
   const _BalanceHeader({
-    required this.balance,
+    required this.balanceState,
+    required this.walletState,
     required this.isTablet,
   });
 
   @override
-  ConsumerState<_BalanceHeader> createState() => _BalanceHeaderState();
-}
-
-class _BalanceHeaderState extends ConsumerState<_BalanceHeader> {
-  bool _balanceVisible = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final hbar = widget.balance?.displayHbar ?? '0.00';
-    final zau = widget.balance?.displayZau ?? '0.00';
-    final total = widget.balance?.totalBalance ?? 0.0;
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final mutedColor = AppTheme.getMutedTextColor(context);
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        widget.isTablet ? 32 : 24,
-        widget.isTablet ? 80 : 60,
-        widget.isTablet ? 32 : 24,
-        widget.isTablet ? 20 : 16,
+    // Debug information
+    walletState.when(
+      data: (wallet) {
+        print('🎯 _BalanceHeader - Wallet state data: $wallet');
+        if (wallet != null) {
+          print('🎯 _BalanceHeader - Public key: ${wallet.publicKey}');
+          print(
+              '🎯 _BalanceHeader - Public key length: ${wallet.publicKey.length}');
+          print(
+              '🎯 _BalanceHeader - Public key isEmpty: ${wallet.publicKey.isEmpty}');
+        } else {
+          print('🎯 _BalanceHeader - Wallet is null');
+        }
+      },
+      loading: () => print('🎯 _BalanceHeader - Wallet loading...'),
+      error: (error, stack) =>
+          print('🎯 _BalanceHeader - Wallet error: $error'),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.scaffoldBackgroundColor,
+            AppTheme.getCardBackground(context).withOpacity(0.3),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            isTablet ? 32 : 24,
+            isTablet ? 60 : 40,
+            isTablet ? 32 : 24,
+            isTablet ? 20 : 16,
+          ),
+          child: Column(
             children: [
               Text(
                 'Total Balance',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  fontSize: widget.isTablet ? 15 : 14,
+                  fontSize: isTablet ? 15 : 14,
                   fontWeight: FontWeight.w500,
                   color: mutedColor,
                 ),
               ),
-              SizedBox(width: widget.isTablet ? 12 : 10),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _balanceVisible = !_balanceVisible;
-                  });
+
+              SizedBox(height: isTablet ? 12 : 10),
+
+              // Balance Display
+              balanceState.when(
+                data: (balance) {
+                  final total = balance?.totalBalance ?? 0.0;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        total.toStringAsFixed(2),
+                        style: theme.textTheme.displayLarge?.copyWith(
+                          fontSize: isTablet ? 52 : 44,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                          height: 1.0,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'ℏ',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontSize: isTablet ? 28 : 24,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
                 },
-                child: Icon(
-                  _balanceVisible
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  color: mutedColor,
-                  size: widget.isTablet ? 22 : 20,
+                loading: () => Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '••••••',
+                      style: theme.textTheme.displayLarge?.copyWith(
+                        fontSize: isTablet ? 52 : 44,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'ℏ',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontSize: isTablet ? 28 : 24,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                error: (error, stack) => Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '--.--',
+                      style: theme.textTheme.displayLarge?.copyWith(
+                        fontSize: isTablet ? 52 : 44,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'ℏ',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontSize: isTablet ? 28 : 24,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface.withOpacity(0.3),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          SizedBox(height: widget.isTablet ? 12 : 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _balanceVisible ? total.toStringAsFixed(2) : '••••••',
-                style: theme.textTheme.displayLarge?.copyWith(
-                  fontSize: widget.isTablet ? 52 : 44,
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
-                  height: 1.0,
-                  letterSpacing: -1.5,
+
+              SizedBox(height: isTablet ? 14 : 12),
+
+              // USD Value
+              balanceState.when(
+                data: (balance) {
+                  final total = balance?.totalBalance ?? 0.0;
+                  return Text(
+                    '≈ \$${(total * 0.05).toStringAsFixed(2)} USD',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: isTablet ? 16 : 15,
+                      fontWeight: FontWeight.w500,
+                      color: mutedColor,
+                    ),
+                  );
+                },
+                loading: () => Text(
+                  '≈ \$--.-- USD',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: isTablet ? 16 : 15,
+                    fontWeight: FontWeight.w500,
+                    color: mutedColor.withOpacity(0.5),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'ℏ',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontSize: widget.isTablet ? 28 : 24,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                error: (error, stack) => Text(
+                  '≈ \$--.-- USD',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: isTablet ? 16 : 15,
+                    fontWeight: FontWeight.w500,
+                    color: mutedColor.withOpacity(0.3),
                   ),
                 ),
               ),
+
+              SizedBox(height: isTablet ? 20 : 16),
+
+              // Public Key Display with enhanced debugging
+              walletState.when(
+                data: (wallet) {
+                  print(
+                      '🔄 _BalanceHeader - Building PublicKeyDisplay with wallet: $wallet');
+
+                  if (wallet == null) {
+                    print(
+                        '❌ _BalanceHeader - Wallet is null, showing no wallet message');
+                    return _NoWalletMessage(isTablet: isTablet);
+                  }
+
+                  if (wallet.publicKey.isEmpty) {
+                    print('❌ _BalanceHeader - Public key is empty string');
+                    return _NoPublicKeyMessage(isTablet: isTablet);
+                  }
+
+                  print(
+                      '✅ _BalanceHeader - Public key found: ${wallet.publicKey}');
+                  return _PublicKeyDisplay(
+                    publicKey: wallet.publicKey,
+                    isTablet: isTablet,
+                  );
+                },
+                loading: () {
+                  print('🔄 _BalanceHeader - Wallet loading state');
+                  return _PublicKeyLoading(isTablet: isTablet);
+                },
+                error: (error, stack) {
+                  print('❌ _BalanceHeader - Wallet error state: $error');
+                  return _WalletErrorState(error: error, isTablet: isTablet);
+                },
+              ),
             ],
           ),
-          SizedBox(height: widget.isTablet ? 14 : 12),
-          Text(
-            '≈ \$${(total * 0.05).toStringAsFixed(2)} USD',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: widget.isTablet ? 16 : 15,
-              fontWeight: FontWeight.w500,
-              color: mutedColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Loading Header Widget
-class _LoadingHeader extends StatelessWidget {
-  const _LoadingHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: CircularProgressIndicator(
-        color: Theme.of(context).colorScheme.primary,
-        strokeWidth: 2.5,
-      ),
-    );
-  }
-}
-
-// Error Header Widget
-class _ErrorHeader extends StatelessWidget {
-  const _ErrorHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final mutedColor = AppTheme.getMutedTextColor(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, color: mutedColor, size: 48),
-          const SizedBox(height: 16),
-          Text(
-            'Error loading balance',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: mutedColor,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Main Content Widget
-class _WalletContent extends StatelessWidget {
-  final AsyncValue walletState;
-  final AsyncValue balanceState;
-  final AsyncValue didState;
-  final bool isTablet;
-  final VoidCallback onRefresh;
-  final VoidCallback onShowFundDialog;
-  final VoidCallback onShowSendDialog;
-  final VoidCallback onShowReceiveDialog;
-  final VoidCallback onShowNFTMarketplace;
-  final VoidCallback onShowTransactionHistory;
-
-  const _WalletContent({
-    required this.walletState,
-    required this.balanceState,
-    required this.didState,
-    required this.isTablet,
-    required this.onRefresh,
-    required this.onShowFundDialog,
-    required this.onShowSendDialog,
-    required this.onShowReceiveDialog,
-    required this.onShowNFTMarketplace,
-    required this.onShowTransactionHistory,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final maxWidth = isTablet ? 800.0 : double.infinity;
-
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Column(
-          children: [
-            SizedBox(height: isTablet ? 28 : 24),
-            _QuickActions(
-              isTablet: isTablet,
-              onShowFundDialog: onShowFundDialog,
-              onShowSendDialog: onShowSendDialog,
-              onShowReceiveDialog: onShowReceiveDialog,
-              onShowNFTMarketplace: onShowNFTMarketplace,
-              onShowTransactionHistory: onShowTransactionHistory,
-            ),
-            SizedBox(height: isTablet ? 28 : 24),
-            _AssetsSection(
-              balanceState: balanceState,
-              isTablet: isTablet,
-              onRefresh: onRefresh,
-            ),
-            SizedBox(height: isTablet ? 24 : 20),
-            _AccountSection(
-              walletState: walletState,
-              didState: didState,
-              isTablet: isTablet,
-            ),
-            SizedBox(height: isTablet ? 24 : 20),
-            _TransactionsCard(isTablet: isTablet),
-            const SizedBox(height: 100),
-          ],
         ),
       ),
     );
   }
 }
 
-// Quick Actions Widget
+// No Wallet Message
+class _NoWalletMessage extends StatelessWidget {
+  final bool isTablet;
+
+  const _NoWalletMessage({required this.isTablet});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 16 : 12,
+        vertical: isTablet ? 12 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.wallet_rounded,
+            size: isTablet ? 18 : 16,
+            color: Theme.of(context).colorScheme.tertiary,
+          ),
+          SizedBox(width: isTablet ? 12 : 8),
+          Expanded(
+            child: Text(
+              'No wallet found',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isTablet ? 14 : 13,
+                fontWeight: FontWeight.w500,
+                color: mutedColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// No Public Key Message
+class _NoPublicKeyMessage extends StatelessWidget {
+  final bool isTablet;
+
+  const _NoPublicKeyMessage({required this.isTablet});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 16 : 12,
+        vertical: isTablet ? 12 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.vpn_key_off_rounded,
+            size: isTablet ? 18 : 16,
+            color: Theme.of(context).colorScheme.tertiary,
+          ),
+          SizedBox(width: isTablet ? 12 : 8),
+          Expanded(
+            child: Text(
+              'Public key not available',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isTablet ? 14 : 13,
+                fontWeight: FontWeight.w500,
+                color: mutedColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Wallet Error State
+class _WalletErrorState extends StatelessWidget {
+  final Object error;
+  final bool isTablet;
+
+  const _WalletErrorState({required this.error, required this.isTablet});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 16 : 12,
+        vertical: isTablet ? 12 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: isTablet ? 18 : 16,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          SizedBox(width: isTablet ? 12 : 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Failed to load wallet',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: isTablet ? 14 : 13,
+                    fontWeight: FontWeight.w500,
+                    color: mutedColor,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  error.toString(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: isTablet ? 12 : 11,
+                    color: mutedColor.withOpacity(0.7),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Public Key Loading State
+class _PublicKeyLoading extends StatelessWidget {
+  final bool isTablet;
+
+  const _PublicKeyLoading({required this.isTablet});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 16 : 12,
+        vertical: isTablet ? 12 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.vpn_key_rounded,
+            size: isTablet ? 18 : 16,
+            color: mutedColor.withOpacity(0.5),
+          ),
+          SizedBox(width: isTablet ? 12 : 8),
+          Expanded(
+            child: Text(
+              'Loading public key...',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isTablet ? 14 : 13,
+                fontWeight: FontWeight.w500,
+                color: mutedColor.withOpacity(0.5),
+              ),
+            ),
+          ),
+          SizedBox(width: isTablet ? 8 : 6),
+          SizedBox(
+            width: isTablet ? 18 : 16,
+            height: isTablet ? 18 : 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: mutedColor.withOpacity(0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Public Key Display with QR Code and Security Features
+class _PublicKeyDisplay extends StatefulWidget {
+  final String publicKey;
+  final bool isTablet;
+
+  const _PublicKeyDisplay({
+    required this.publicKey,
+    required this.isTablet,
+  });
+
+  @override
+  State<_PublicKeyDisplay> createState() => _PublicKeyDisplayState();
+}
+
+class _PublicKeyDisplayState extends State<_PublicKeyDisplay> {
+  bool _showQrCode = false;
+  bool _obscureText = true;
+
+  String _truncatePublicKey(String key) {
+    if (key.length <= 16) return key;
+    final start = key.substring(0, 8);
+    final end = key.substring(key.length - 8);
+    return '$start...$end';
+  }
+
+  String _getDisplayText() {
+    if (_obscureText) {
+      return '•' * 20; // Show dots when obscured
+    }
+    return _truncatePublicKey(widget.publicKey);
+  }
+
+  void _copyToClipboard() {
+    Clipboard.setData(ClipboardData(text: widget.publicKey));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Theme.of(context).colorScheme.onPrimary, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Public Key copied!',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+            ),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Column(
+      children: [
+        // Public Key Row
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.isTablet ? 16 : 12,
+            vertical: widget.isTablet ? 12 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.vpn_key_rounded,
+                size: widget.isTablet ? 18 : 16,
+                color: mutedColor,
+              ),
+              SizedBox(width: widget.isTablet ? 12 : 8),
+              Expanded(
+                child: Text(
+                  _getDisplayText(),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: widget.isTablet ? 14 : 13,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: _obscureText ? null : 'Monospace',
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(width: widget.isTablet ? 8 : 6),
+              // Eye Icon for Show/Hide
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
+                icon: Icon(
+                  _obscureText
+                      ? Icons.visibility_rounded
+                      : Icons.visibility_off_rounded,
+                  size: widget.isTablet ? 18 : 16,
+                  color: mutedColor,
+                ),
+                tooltip: _obscureText ? 'Show Public Key' : 'Hide Public Key',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              SizedBox(width: widget.isTablet ? 8 : 6),
+              // Copy Icon
+              IconButton(
+                onPressed: _copyToClipboard,
+                icon: Icon(
+                  Icons.copy_rounded,
+                  size: widget.isTablet ? 18 : 16,
+                  color: theme.colorScheme.primary,
+                ),
+                tooltip: 'Copy Public Key',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              SizedBox(width: widget.isTablet ? 8 : 6),
+              // QR Code Toggle
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showQrCode = !_showQrCode;
+                  });
+                },
+                icon: Icon(
+                  _showQrCode ? Icons.qr_code_2_rounded : Icons.qr_code_rounded,
+                  size: widget.isTablet ? 18 : 16,
+                  color: theme.colorScheme.primary,
+                ),
+                tooltip: _showQrCode ? 'Hide QR Code' : 'Show QR Code',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: widget.isTablet ? 16 : 12),
+
+        // QR Code Display
+        if (_showQrCode)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: EdgeInsets.all(widget.isTablet ? 20 : 16),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Public Key QR Code',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontSize: widget.isTablet ? 16 : 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: widget.isTablet ? 16 : 12),
+                // QR Code
+                Container(
+                  padding: EdgeInsets.all(widget.isTablet ? 20 : 16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: QrImageView(
+                    data: widget.publicKey,
+                    version: QrVersions.auto,
+                    size: widget.isTablet ? 160 : 120,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    eyeStyle: QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    dataModuleStyle: QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                SizedBox(height: widget.isTablet ? 12 : 8),
+                Text(
+                  'Scan to share public key',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: mutedColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// Quick Actions
 class _QuickActions extends StatelessWidget {
   final bool isTablet;
   final VoidCallback onShowFundDialog;
@@ -692,92 +1069,72 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = AppTheme.getCardBackground(context);
-    final borderColor = AppTheme.getBorderColorFromContext(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 20),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: isTablet ? 12 : 8,
-          vertical: isTablet ? 18 : 16,
-        ),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: borderColor,
-            width: 1,
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 12 : 8,
+        vertical: isTablet ? 18 : 16,
+      ),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _ActionButton(
+            label: 'Fund',
+            icon: Icons.add_circle_outline_rounded,
+            color: Theme.of(context).colorScheme.primary,
+            onTap: onShowFundDialog,
+            isTablet: isTablet,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: [
-              _ActionItem(
-                label: 'Fund',
-                icon: Icons.add_circle_outline_rounded,
-                color: AppTheme.success,
-                onTap: onShowFundDialog,
-                isTablet: isTablet,
-              ),
-              SizedBox(width: isTablet ? 12 : 10),
-              _ActionItem(
-                label: 'Send',
-                icon: Icons.arrow_upward_rounded,
-                color: AppTheme.warning,
-                onTap: onShowSendDialog,
-                isTablet: isTablet,
-              ),
-              SizedBox(width: isTablet ? 12 : 10),
-              _ActionItem(
-                label: 'Receive',
-                icon: Icons.arrow_downward_rounded,
-                color: AppTheme.info,
-                onTap: onShowReceiveDialog,
-                isTablet: isTablet,
-              ),
-              SizedBox(width: isTablet ? 12 : 10),
-              _ActionItem(
-                label: 'Trade',
-                icon: Icons.swap_horiz_rounded,
-                color: AppTheme.primaryColor,
-                onTap: onShowNFTMarketplace,
-                isTablet: isTablet,
-              ),
-              SizedBox(width: isTablet ? 12 : 10),
-              _ActionItem(
-                label: 'History',
-                icon: Icons.receipt_long_rounded,
-                color: AppTheme.primaryColor,
-                onTap: onShowTransactionHistory,
-                isTablet: isTablet,
-              ),
-            ],
+          _ActionButton(
+            label: 'Send',
+            icon: Icons.arrow_upward_rounded,
+            color: Theme.of(context).colorScheme.tertiary,
+            onTap: onShowSendDialog,
+            isTablet: isTablet,
           ),
-        ),
+          _ActionButton(
+            label: 'Receive',
+            icon: Icons.arrow_downward_rounded,
+            color: Theme.of(context).colorScheme.secondary,
+            onTap: onShowReceiveDialog,
+            isTablet: isTablet,
+          ),
+          _ActionButton(
+            label: 'Trade',
+            icon: Icons.swap_horiz_rounded,
+            color: Theme.of(context).colorScheme.primary,
+            onTap: onShowNFTMarketplace,
+            isTablet: isTablet,
+          ),
+          _ActionButton(
+            label: 'History',
+            icon: Icons.receipt_long_rounded,
+            color: Theme.of(context).colorScheme.primary,
+            onTap: onShowTransactionHistory,
+            isTablet: isTablet,
+          ),
+        ],
       ),
     );
   }
 }
 
-// Action Item Widget
-class _ActionItem extends StatelessWidget {
+// Action Button
+class _ActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
   final bool isTablet;
 
-  const _ActionItem({
+  const _ActionButton({
     required this.label,
     required this.icon,
     required this.color,
@@ -788,46 +1145,36 @@ class _ActionItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textColor = AppTheme.getTextColor(context);
+    final textColor = Theme.of(context).colorScheme.onSurface;
 
-    return Flexible(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              vertical: isTablet ? 10 : 8,
-              horizontal: isTablet ? 8 : 4,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(isTablet ? 10 : 8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: isTablet ? 24 : 22,
-                  ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: isTablet ? 10 : 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.all(isTablet ? 10 : 8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                SizedBox(height: isTablet ? 8 : 6),
-                Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontSize: isTablet ? 12 : 11,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                  textAlign: TextAlign.center,
+                child: Icon(icon, color: color, size: isTablet ? 24 : 22),
+              ),
+              SizedBox(height: isTablet ? 8 : 6),
+              Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: isTablet ? 12 : 11,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -835,9 +1182,9 @@ class _ActionItem extends StatelessWidget {
   }
 }
 
-// Assets Section Widget
+// Assets Section
 class _AssetsSection extends StatelessWidget {
-  final AsyncValue balanceState;
+  final AsyncValue<WalletBalance?> balanceState;
   final bool isTablet;
   final VoidCallback onRefresh;
 
@@ -850,56 +1197,47 @@ class _AssetsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textColor = AppTheme.getTextColor(context);
+    final textColor = Theme.of(context).colorScheme.onSurface;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Assets',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontSize: isTablet ? 19 : 17,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Assets',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontSize: isTablet ? 19 : 17,
+                fontWeight: FontWeight.w700,
+                color: textColor,
               ),
-              IconButton(
-                onPressed: onRefresh,
-                icon: Icon(
-                  Icons.refresh_rounded,
-                  color: theme.colorScheme.primary,
-                  size: isTablet ? 22 : 20,
-                ),
-                tooltip: 'Refresh',
+            ),
+            IconButton(
+              onPressed: onRefresh,
+              icon: Icon(
+                Icons.refresh_rounded,
+                color: theme.colorScheme.primary,
+                size: isTablet ? 22 : 20,
               ),
-            ],
-          ),
-          SizedBox(height: isTablet ? 14 : 12),
-          balanceState.when(
-            data: (balance) => _AssetsList(
-              balance: balance,
-              isTablet: isTablet,
+              tooltip: 'Refresh',
             ),
-            loading: () => _LoadingCard(isTablet: isTablet),
-            error: (_, __) => _ErrorCard(
-              title: 'Assets',
-              isTablet: isTablet,
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        SizedBox(height: isTablet ? 14 : 12),
+        balanceState.when(
+          data: (balance) => _AssetsList(balance: balance, isTablet: isTablet),
+          loading: () => _LoadingCard(isTablet: isTablet),
+          error: (_, __) => _ErrorCard(title: 'Assets', isTablet: isTablet),
+        ),
+      ],
     );
   }
 }
 
-// Assets List Widget
+// Assets List
 class _AssetsList extends StatelessWidget {
-  final dynamic balance;
+  final WalletBalance? balance;
   final bool isTablet;
 
   const _AssetsList({
@@ -919,7 +1257,7 @@ class _AssetsList extends StatelessWidget {
           amount: hbar,
           symbol: 'ℏ',
           icon: Icons.currency_bitcoin,
-          color: AppTheme.success,
+          color: Theme.of(context).colorScheme.primary,
           isTablet: isTablet,
         ),
         SizedBox(height: isTablet ? 12 : 10),
@@ -928,7 +1266,7 @@ class _AssetsList extends StatelessWidget {
           amount: zau,
           symbol: 'ZAU',
           icon: Icons.toll_rounded,
-          color: AppTheme.warning,
+          color: Theme.of(context).colorScheme.tertiary,
           isTablet: isTablet,
         ),
       ],
@@ -936,8 +1274,8 @@ class _AssetsList extends StatelessWidget {
   }
 }
 
-// Asset Row Widget
-class _AssetRow extends ConsumerWidget {
+// Asset Row
+class _AssetRow extends StatelessWidget {
   final String name;
   final String amount;
   final String symbol;
@@ -955,29 +1293,23 @@ class _AssetRow extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cardColor = AppTheme.getCardBackground(context);
-    final borderColor = AppTheme.getBorderColorFromContext(context);
-    final textColor = AppTheme.getTextColor(context);
-    final mutedColor = AppTheme.getMutedTextColor(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    // Safe amount parsing
+    final amountValue = double.tryParse(amount) ?? 0.0;
+    final usdValue = (amountValue * 0.05).toStringAsFixed(2);
 
     return Container(
       padding: EdgeInsets.all(isTablet ? 18 : 16),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderColor,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
@@ -1004,7 +1336,7 @@ class _AssetRow extends ConsumerWidget {
                 ),
                 SizedBox(height: isTablet ? 6 : 4),
                 Text(
-                  '≈ \$${(double.parse(amount) * 0.05).toStringAsFixed(2)}',
+                  '≈ \$$usdValue',
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: isTablet ? 13 : 12,
                     color: mutedColor,
@@ -1042,198 +1374,7 @@ class _AssetRow extends ConsumerWidget {
   }
 }
 
-// Account Section Widget
-class _AccountSection extends StatelessWidget {
-  final AsyncValue walletState;
-  final AsyncValue didState;
-  final bool isTablet;
-
-  const _AccountSection({
-    required this.walletState,
-    required this.didState,
-    required this.isTablet,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cardColor = AppTheme.getCardBackground(context);
-    final borderColor = AppTheme.getBorderColorFromContext(context);
-    final textColor = AppTheme.getTextColor(context);
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 20),
-      child: Container(
-        padding: EdgeInsets.all(isTablet ? 20 : 18),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: borderColor,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Account Details',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: isTablet ? 17 : 16,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-              ),
-            ),
-            SizedBox(height: isTablet ? 18 : 16),
-            walletState.when(
-              data: (wallet) => Column(
-                children: [
-                  _DetailRow(
-                    label: 'Hedera Account ID',
-                    value: wallet?.hederaAccountId ?? 'N/A',
-                    isTablet: isTablet,
-                  ),
-                  _Divider(isTablet: isTablet),
-                  _DetailRow(
-                    label: 'Wallet ID',
-                    value: _maskString(wallet?.id ?? 'N/A', 6, 6),
-                    isTablet: isTablet,
-                  ),
-                  _Divider(isTablet: isTablet),
-                  _DetailRow(
-                    label: 'Public Key',
-                    value: _maskString(wallet?.publicKey ?? 'N/A', 10, 10),
-                    isTablet: isTablet,
-                  ),
-                ],
-              ),
-              loading: () => _LoadingRow(isTablet: isTablet),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _maskString(String str, int startChars, int endChars) {
-    if (str.length <= startChars + endChars) return str;
-    return '${str.substring(0, startChars)}...${str.substring(str.length - endChars)}';
-  }
-}
-
-// Detail Row Widget
-class _DetailRow extends ConsumerWidget {
-  final String label;
-  final String value;
-  final bool isTablet;
-
-  const _DetailRow({
-    required this.label,
-    required this.value,
-    required this.isTablet,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final mutedColor = AppTheme.getMutedTextColor(context);
-    final textColor = AppTheme.getTextColor(context);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: isTablet ? 13 : 12,
-            color: mutedColor,
-          ),
-        ),
-        Row(
-          children: [
-            Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: isTablet ? 13 : 12,
-                fontWeight: FontWeight.w500,
-                color: textColor,
-              ),
-            ),
-            SizedBox(width: isTablet ? 10 : 8),
-            GestureDetector(
-              onTap: () => _copyToClipboard(context, ref, label, value),
-              child: Icon(
-                Icons.copy_rounded,
-                size: isTablet ? 16 : 14,
-                color: mutedColor,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _copyToClipboard(
-      BuildContext context, WidgetRef ref, String label, String value) {
-    final theme = Theme.of(context);
-
-    Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Text(
-              '$label copied!',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.success,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-}
-
-// Divider Widget
-class _Divider extends StatelessWidget {
-  final bool isTablet;
-
-  const _Divider({required this.isTablet});
-
-  @override
-  Widget build(BuildContext context) {
-    final dividerColor = AppTheme.getDividerColor(context);
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: isTablet ? 14 : 12),
-      child: Divider(
-        height: 1,
-        thickness: 1,
-        color: dividerColor,
-      ),
-    );
-  }
-}
-
-// Transactions Card Widget
+// Transactions Card
 class _TransactionsCard extends StatelessWidget {
   final bool isTablet;
 
@@ -1242,59 +1383,53 @@ class _TransactionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cardColor = AppTheme.getCardBackground(context);
-    final borderColor = AppTheme.getBorderColorFromContext(context);
-    final textColor = AppTheme.getTextColor(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final textColor = Theme.of(context).colorScheme.onSurface;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 20),
-      child: Container(
-        padding: EdgeInsets.all(isTablet ? 20 : 16),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: borderColor,
-            width: 1,
+    return Container(
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recent Transactions',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: isTablet ? 16 : 15,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/wallet/history'),
+                child: Text(
+                  'View All',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: isTablet ? 13 : 12,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Recent Transactions',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontSize: isTablet ? 16 : 15,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => context.push('/wallet/history'),
-                  child: Text(
-                    'View All',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: isTablet ? 13 : 12,
-                      fontWeight: FontWeight.w500,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: isTablet ? 16 : 12),
-            _EmptyTransactions(isTablet: isTablet),
-          ],
-        ),
+          SizedBox(height: isTablet ? 16 : 12),
+          _EmptyTransactions(isTablet: isTablet),
+        ],
       ),
     );
   }
 }
 
-// Empty Transactions Widget
+// Empty Transactions
 class _EmptyTransactions extends StatelessWidget {
   final bool isTablet;
 
@@ -1343,29 +1478,7 @@ class _EmptyTransactions extends StatelessWidget {
   }
 }
 
-// Loading Row Widget
-class _LoadingRow extends StatelessWidget {
-  final bool isTablet;
-
-  const _LoadingRow({required this.isTablet});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: EdgeInsets.all(isTablet ? 24 : 20),
-      child: Center(
-        child: CircularProgressIndicator(
-          color: theme.colorScheme.primary,
-          strokeWidth: isTablet ? 3 : 2.5,
-        ),
-      ),
-    );
-  }
-}
-
-// Loading Card Widget
+// Loading Card
 class _LoadingCard extends StatelessWidget {
   final bool isTablet;
 
@@ -1382,22 +1495,18 @@ class _LoadingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderColor,
-          width: 1,
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Center(
         child: CircularProgressIndicator(
           color: theme.colorScheme.primary,
-          strokeWidth: isTablet ? 3 : 2.5,
         ),
       ),
     );
   }
 }
 
-// Error Card Widget
+// Error Card
 class _ErrorCard extends StatelessWidget {
   final String title;
   final bool isTablet;
@@ -1410,19 +1519,16 @@ class _ErrorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cardColor = AppTheme.getCardBackground(context);
-    final borderColor = AppTheme.getBorderColorFromContext(context);
-    final mutedColor = AppTheme.getMutedTextColor(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Container(
       padding: EdgeInsets.all(isTablet ? 24 : 20),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderColor,
-          width: 1,
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         children: [
@@ -1442,6 +1548,204 @@ class _ErrorCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Wallet Details Section (Wallet ID, Hedera Account ID, Public Key, DID)
+class _WalletDetailsSection extends StatelessWidget {
+  final AsyncValue<Wallet?> walletState;
+  final AsyncValue<String?> didState;
+  final bool isTablet;
+
+  const _WalletDetailsSection({
+    required this.walletState,
+    required this.didState,
+    required this.isTablet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = Theme.of(context).colorScheme.outline;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Wallet Details',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontSize: isTablet ? 16 : 15,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+          SizedBox(height: isTablet ? 14 : 12),
+          walletState.when(
+            data: (wallet) {
+              if (wallet == null) {
+                return Text(
+                  'No wallet found',
+                  style:
+                      theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
+                );
+              }
+              return Column(
+                children: [
+                  _InfoRow(
+                    label: 'Hedera Account ID',
+                    value: wallet.hederaAccountId,
+                    isTablet: isTablet,
+                  ),
+                  SizedBox(height: isTablet ? 12 : 10),
+                  _InfoRow(
+                    label: 'Wallet ID',
+                    value: _maskEnds(wallet.id, 6),
+                    fullCopyValue: wallet.id,
+                    isTablet: isTablet,
+                  ),
+                  SizedBox(height: isTablet ? 12 : 10),
+                  _InfoRow(
+                    label: 'Public Key',
+                    value: _maskEnds(wallet.publicKey, 10),
+                    fullCopyValue: wallet.publicKey,
+                    isTablet: isTablet,
+                  ),
+                  SizedBox(height: isTablet ? 12 : 10),
+                  didState.when(
+                    data: (did) => _InfoRow(
+                      label: 'Decentralized ID',
+                      value:
+                          did == null || did.isEmpty ? '—' : _maskEnds(did, 8),
+                      fullCopyValue: did ?? '',
+                      isTablet: isTablet,
+                    ),
+                    loading: () => _InfoRow(
+                      label: 'Decentralized ID',
+                      value: 'Loading…',
+                      isTablet: isTablet,
+                      isLoading: true,
+                    ),
+                    error: (_, __) => _InfoRow(
+                      label: 'Decentralized ID',
+                      value: 'Failed to load',
+                      isTablet: isTablet,
+                      isError: true,
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => Row(
+              children: [
+                SizedBox(
+                  width: isTablet ? 18 : 16,
+                  height: isTablet ? 18 : 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: mutedColor),
+                ),
+                SizedBox(width: 8),
+                Text('Loading wallet…',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: mutedColor)),
+              ],
+            ),
+            error: (error, _) => Text(
+              'Failed to load wallet: $error',
+              style: theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _maskEnds(String value, int keep) {
+    if (value.length <= keep * 2) return value;
+    return '${value.substring(0, keep)}...${value.substring(value.length - keep)}';
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? fullCopyValue;
+  final bool isTablet;
+  final bool isLoading;
+  final bool isError;
+
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    required this.isTablet,
+    this.fullCopyValue,
+    this.isLoading = false,
+    this.isError = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    final valueStyle = theme.textTheme.bodyMedium?.copyWith(
+      fontSize: isTablet ? 14 : 13,
+      fontWeight: FontWeight.w600,
+      color: isError ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.onSurface,
+      fontFamily: 'Monospace',
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: isTablet ? 12 : 11,
+                  color: mutedColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(value, style: valueStyle, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+        SizedBox(width: isTablet ? 8 : 6),
+        if (isLoading)
+          SizedBox(
+            width: isTablet ? 18 : 16,
+            height: isTablet ? 18 : 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: mutedColor),
+          )
+        else if (fullCopyValue != null && fullCopyValue!.isNotEmpty)
+          IconButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: fullCopyValue ?? ''));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('$label copied')),
+              );
+            },
+            icon: Icon(Icons.copy_rounded,
+                size: isTablet ? 18 : 16, color: theme.colorScheme.primary),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Copy $label',
+          ),
+      ],
     );
   }
 }

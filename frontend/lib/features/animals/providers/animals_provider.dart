@@ -51,8 +51,13 @@ class AnimalsNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
         limit: limit,
         ownerId: ownerId,
       );
+      // Log success and item count for debugging
+      // ignore: avoid_print
+      print('✅ animalsProvider.getAnimals -> ${response.data.length} items');
       state = AsyncValue.data(response.data);
     } catch (error, stackTrace) {
+      // ignore: avoid_print
+      print('❌ animalsProvider.getAnimals error: $error');
       state = AsyncValue.error(error, stackTrace);
     }
   }
@@ -67,8 +72,12 @@ class AnimalsNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
     state = const AsyncValue.loading();
     try {
       final animals = await _repository.searchAnimals(query);
+      // ignore: avoid_print
+      print('🔎 animalsProvider.searchAnimals("$query") -> ${animals.length}');
       state = AsyncValue.data(animals);
     } catch (error, stackTrace) {
+      // ignore: avoid_print
+      print('❌ animalsProvider.searchAnimals error: $error');
       state = AsyncValue.error(error, stackTrace);
     }
   }
@@ -194,15 +203,59 @@ class AnimalNotifier extends StateNotifier<AsyncValue<Animal?>> {
 
 class MyAnimalsNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
   final AnimalsRepository _repository;
+  int _currentPage = 1;
+  int _totalPages = 1;
+  int _limit = 10;
 
   MyAnimalsNotifier(this._repository) : super(const AsyncValue.data([]));
 
+  int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
+  int get limit => _limit;
+
   /// Get user's animals
-  Future<void> getMyAnimals() async {
+  Future<void> getMyAnimals({int page = 1, int limit = 10}) async {
     state = const AsyncValue.loading();
     try {
-      final animals = await _repository.getMyAnimals();
-      state = AsyncValue.data(animals);
+      final resp = await _repository.getMyAnimalsPaginated(page: page, limit: limit);
+      _currentPage = resp.pagination.page;
+      _totalPages = resp.pagination.totalPages;
+      _limit = resp.pagination.limit;
+      state = AsyncValue.data(resp.data);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  /// Jump to a specific page
+  Future<void> goToPage(int page) async {
+    final target = page.clamp(1, _totalPages == 0 ? 1 : _totalPages);
+    await getMyAnimals(page: target, limit: _limit);
+  }
+
+  /// Update page size and reset to first page
+  Future<void> setLimit(int newLimit) async {
+    _limit = newLimit;
+    await getMyAnimals(page: 1, limit: _limit);
+  }
+
+  /// Load next page and append to the current list if available
+  Future<void> loadMore() async {
+    // Avoid calling if already loading or no more pages
+    if (state.isLoading) return;
+    if (_currentPage >= (_totalPages == 0 ? 1 : _totalPages)) return;
+
+    final current = state.value ?? [];
+    state = const AsyncValue.loading();
+    try {
+      final resp = await _repository.getMyAnimalsPaginated(
+        page: _currentPage + 1,
+        limit: _limit,
+      );
+      _currentPage = resp.pagination.page;
+      _totalPages = resp.pagination.totalPages;
+      _limit = resp.pagination.limit;
+      state = AsyncValue.data([...current, ...resp.data]);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     }
@@ -249,7 +302,7 @@ class MyAnimalsNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
 
   /// Refresh my animals
   Future<void> refresh() async {
-    await getMyAnimals();
+    await getMyAnimals(page: _currentPage, limit: _limit);
   }
 
   /// Clear my animals state
@@ -285,7 +338,7 @@ class PendingReviewAnimalsNotifier
   /// Review and approve an animal
   Future<void> approveAnimal(String animalId, {String? comment}) async {
     try {
-      final animal = await _repository.reviewAnimal(
+      await _repository.reviewAnimal(
         id: animalId,
         approved: true,
         comment: comment,
@@ -305,7 +358,7 @@ class PendingReviewAnimalsNotifier
   /// Review and reject an animal
   Future<void> rejectAnimal(String animalId, {String? comment}) async {
     try {
-      final animal = await _repository.reviewAnimal(
+      await _repository.reviewAnimal(
         id: animalId,
         approved: false,
         comment: comment,

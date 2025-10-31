@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../shared/presentation/widgets/loading_overlay.dart';
+import '../../../animals/providers/animals_provider.dart';
+import '../../../trading/providers/trading_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -38,7 +41,7 @@ class ProfileScreen extends ConsumerWidget {
               _buildProfileHeader(
                   user?.fullName ?? 'User', user?.email ?? '', user?.avatarUrl),
               const SizedBox(height: 24),
-              _buildProfileStats(),
+              _buildProfileStats(ref),
               const SizedBox(height: 24),
               _buildMenuSection(context, ref),
             ],
@@ -113,14 +116,30 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileStats() {
+  Widget _buildProfileStats(WidgetRef ref) {
+    final animalsState = ref.watch(myAnimalsProvider);
+    final tradesState = ref.watch(myTradesProvider);
+
+    final animalsCount = animalsState.when(
+      data: (animals) => animals.length.toString(),
+      loading: () => '...',
+      error: (_, __) => '0',
+    );
+
+    final tradesCount = tradesState.when(
+      data: (trades) => trades.length.toString(),
+      loading: () => '...',
+      error: (_, __) => '0',
+    );
+
+    // Rating might not be available yet, showing placeholder
     return Row(
       children: [
-        Expanded(child: _buildStatCard('Animals', '0', Icons.pets)),
+        Expanded(child: _buildStatCard('Animals', animalsCount, Icons.pets)),
         const SizedBox(width: 12),
-        Expanded(child: _buildStatCard('Trades', '0', Icons.swap_horiz)),
+        Expanded(child: _buildStatCard('Trades', tradesCount, Icons.swap_horiz)),
         const SizedBox(width: 12),
-        Expanded(child: _buildStatCard('Rating', '5.0', Icons.star)),
+        Expanded(child: _buildStatCard('Rating', '—', Icons.star)),
       ],
     );
   }
@@ -177,7 +196,7 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.security,
             title: 'Security Settings',
             onTap: () {
-              // TODO: Navigate to security settings
+              context.push('/profile/security');
             },
           ),
           _buildDivider(),
@@ -185,7 +204,7 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.notifications_outlined,
             title: 'Notifications',
             onTap: () {
-              // TODO: Navigate to notification settings
+              context.push('/profile/notifications');
             },
           ),
           _buildDivider(),
@@ -193,16 +212,14 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.help_outline,
             title: 'Help & Support',
             onTap: () {
-              // TODO: Navigate to help
+              context.push('/help');
             },
           ),
           _buildDivider(),
           _buildMenuItem(
             icon: Icons.info_outline,
             title: 'About',
-            onTap: () {
-              // TODO: Show about dialog
-            },
+            onTap: () => _showAboutDialog(context),
           ),
           _buildDivider(),
           _buildMenuItem(
@@ -283,6 +300,88 @@ class ProfileScreen extends ConsumerWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: AppTheme.primaryColor),
+            const SizedBox(width: 12),
+            Text(
+              'About Zauro Marketplace',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Version ${AppConfig.appVersion}',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.grey900,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Zauro Marketplace is a blockchain-powered platform for trading livestock as NFTs on the Hedera network.',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: AppTheme.grey600,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Divider(color: AppTheme.grey300),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () {
+                // TODO: Open terms URL
+              },
+              icon: Icon(Icons.description, size: 20),
+              label: Text(
+                'Terms of Service',
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                // TODO: Open privacy policy URL
+              },
+              icon: Icon(Icons.privacy_tip, size: 20),
+              label: Text(
+                'Privacy Policy',
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryColor,
               ),
             ),
           ),
