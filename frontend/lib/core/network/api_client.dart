@@ -120,6 +120,13 @@ abstract class ApiClient {
     @Query('ownerId') String? ownerId,
   );
 
+  // Listed Animals (marketplace)
+  @GET('/animals/listed')
+  Future<HttpResponse<dynamic>> getListedAnimals(
+    @Query('page') int page,
+    @Query('limit') int limit,
+  );
+
   // My Animals (authenticated user's animals)
   @GET('/animals/my')
   Future<HttpResponse<dynamic>> getMyAnimals(
@@ -552,6 +559,10 @@ class AuthInterceptor extends Interceptor {
 
     // Public list endpoints (no path params)
     if (path == '/animals') {
+      return true;
+    }
+
+    if (path == '/animals/listed') {
       return true;
     }
 

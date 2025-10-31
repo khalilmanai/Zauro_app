@@ -203,6 +203,58 @@ class AnimalsRepository {
     }
   }
 
+  /// Get listed animals (marketplace) - uses /api/v1/animals/listed endpoint
+  Future<PaginatedResponse<Animal>> getListedAnimals({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      // This endpoint returns { success, message, data: [..], pagination: {...} }
+      final rawResp = await _apiClient.getListedAnimals(page, limit);
+      final raw = rawResp.data as Map<String, dynamic>;
+      
+      // Handle case where data might be directly a list (some endpoints)
+      dynamic dataValue = raw['data'];
+      if (dataValue == null) {
+        return PaginatedResponse<Animal>(
+          data: [],
+          pagination: PaginationInfo(
+            page: page,
+            limit: limit,
+            total: 0,
+            totalPages: 0,
+          ),
+        );
+      }
+      
+      final List<dynamic> list = dataValue is List ? dataValue : [];
+      
+      final animals = <Animal>[];
+      for (final item in list) {
+        try {
+          if (item is Map<String, dynamic>) {
+            animals.add(Animal.fromJson(item));
+          }
+        } catch (e) {
+          // Log but don't fail on individual item parsing errors
+          debugPrint('⚠️ Failed to parse listed animal: $e');
+          debugPrint('   Animal data: $item');
+        }
+      }
+      
+      final pagination = PaginationInfo.fromJson(
+        (raw['pagination'] as Map<String, dynamic>? ?? {}),
+      );
+      
+      return PaginatedResponse<Animal>(data: animals, pagination: pagination);
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error in getListedAnimals: $e');
+      debugPrint('   Stack trace: $stackTrace');
+      if (e is ServerFailure) rethrow;
+      throw ServerFailure(message: 'Failed to get listed animals: ${e.toString()}');
+    }
+  }
+
   /// Get animals pending expert review (Admin/Manager only)
   Future<PaginatedResponse<Animal>> getPendingReviewAnimals({
     int page = 1,

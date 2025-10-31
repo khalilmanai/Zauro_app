@@ -15,23 +15,19 @@ export class WalletService {
     private encryptionService: EncryptionService,
   ) {}
 
+  /**
+   * Create a new wallet for a user
+   */
   async createWallet(userId: string): Promise<WalletResponseDto> {
-    // Check if user already has a wallet
-    const existingWallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
+    const existingWallet = await this.prisma.wallet.findUnique({ where: { userId } });
 
     if (existingWallet) {
       throw new ConflictException('User already has a wallet');
     }
 
-    // Create Hedera account
     const hederaAccount = await this.hederaService.createAccount();
-
-    // Encrypt private key
     const encryptedPrivateKey = this.encryptionService.encrypt(hederaAccount.privateKey);
 
-    // Save wallet to database
     const wallet = await this.prisma.wallet.create({
       data: {
         userId,
@@ -41,64 +37,84 @@ export class WalletService {
       },
     });
 
-    // Get initial balance
     const balance = await this.hederaService.getAccountBalance(hederaAccount.accountId);
+
+    const safeBalance = {
+      hbar: balance.hbar ?? '0',
+      zau: balance.zau ?? '0',
+      tokens: balance.tokens ?? {},
+      timestamp: new Date().toISOString(),
+    };
 
     return {
       id: wallet.id,
       hederaAccountId: wallet.hederaAccountId,
       publicKey: wallet.publicKey,
-      balance,
+      balance: safeBalance,
       createdAt: wallet.createdAt,
     };
   }
 
+  /**
+   * Retrieve a wallet by user ID
+   */
   async getWallet(userId: string): Promise<WalletResponseDto> {
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundException('Wallet not found');
 
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found');
-    }
+    const balance = await this.hederaService.getAccountBalance(wallet.hederaAccountId);
 
-    // Get current balance
+    const safeBalance = {
+      hbar: balance.hbar ?? '0',
+      zau: balance.zau ?? '0',
+      tokens: balance.tokens ?? {},
+      timestamp: new Date().toISOString(),
+    };
+
+    return {
+      id: wallet.id,
+      hederaAccountId: wallet.hederaAccountId,
+      publicKey: wallet.publicKey,
+      balance: safeBalance,
+      createdAt: wallet.createdAt,
+    };
+  }
+
+  /**
+   * Get wallet balance by user ID (lightweight endpoint)
+   */
+  async getWalletBalance(userId: string): Promise<{
+    hbar: string;
+    zau: string;
+    tokens: Record<string, string>;
+    timestamp: string;
+  }> {
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundException('Wallet not found');
+
     const balance = await this.hederaService.getAccountBalance(wallet.hederaAccountId);
 
     return {
-      id: wallet.id,
-      hederaAccountId: wallet.hederaAccountId,
-      publicKey: wallet.publicKey,
-      balance,
-      createdAt: wallet.createdAt,
+      hbar: balance.hbar ?? '0',
+      zau: balance.zau ?? '0',
+      tokens: balance.tokens ?? {},
+      timestamp: new Date().toISOString(),
     };
   }
 
-  async getWalletBalance(userId: string): Promise<{ hbar: string; zau: string }> {
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
+  /**
+   * Transfer HBAR between wallets
+   */
+  async transferHbar(
+    userId: string,
+    toAccountId: string,
+    amount: string,
+  ): Promise<TransferResponseDto> {
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundException('Wallet not found');
 
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found');
-    }
-
-    return await this.hederaService.getAccountBalance(wallet.hederaAccountId);
-  }
-
-  async transferHbar(userId: string, toAccountId: string, amount: string): Promise<TransferResponseDto> {
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
-
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found');
-    }
-
-    // Decrypt private key
     const privateKey = this.encryptionService.decrypt(wallet.encryptedPrivateKey);
 
-    // Execute transfer
     const transactionHash = await this.hederaService.transferHbar(
       wallet.hederaAccountId,
       toAccountId,
@@ -109,8 +125,11 @@ export class WalletService {
     return { transactionHash };
   }
 
+  /**
+   * Retrieve wallet by Hedera account ID
+   */
   async getWalletByAccountId(accountId: string) {
-    return await this.prisma.wallet.findUnique({
+    return this.prisma.wallet.findUnique({
       where: { hederaAccountId: accountId },
       include: { user: true },
     });
@@ -118,71 +137,50 @@ export class WalletService {
 
   /**
    * Fund a user's wallet with HBAR from the operator account
-   * This is useful for topping up user accounts or providing initial funding
    */
-  async fundUserAccount(userId: string, amount: string, memo?: string): Promise<TransferResponseDto> {
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
+  async fundUserAccount(
+    userId: string,
+    amount: string,
+    memo?: string,
+  ): Promise<TransferResponseDto> {
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundException('Wallet not found. User must create a wallet first.');
+
+    const fundingResult = await this.hederaService.fundAccount(wallet.hederaAccountId, amount, {
+      memo: memo || `Funding for user ${userId}`,
     });
 
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found. User must create a wallet first.');
-    }
-
-    // Fund the user's account using the operator account
-    const fundingResult = await this.hederaService.fundAccount(
-      wallet.hederaAccountId,
-      amount,
-      {
-        memo: memo || `Funding for user ${userId}`
-      }
-    );
-
-    return {
-      transactionHash: fundingResult.transactionId,
-    };
+    return { transactionHash: fundingResult.transactionId };
   }
 
   /**
-   * Fund a specific Hedera account with HBAR from the operator account
-   * This allows funding any account by account ID (not just user wallets)
+   * Fund a specific Hedera account by account ID
    */
-  async fundHederaAccount(accountId: string, amount: string, memo?: string): Promise<TransferResponseDto> {
-    // Fund the specified account using the operator account
-    const fundingResult = await this.hederaService.fundAccount(
-      accountId,
-      amount,
-      {
-        memo: memo || `Direct funding to account ${accountId}`
-      }
-    );
+  async fundHederaAccount(
+    accountId: string,
+    amount: string,
+    memo?: string,
+  ): Promise<TransferResponseDto> {
+    const fundingResult = await this.hederaService.fundAccount(accountId, amount, {
+      memo: memo || `Direct funding to account ${accountId}`,
+    });
 
-    return {
-      transactionHash: fundingResult.transactionId,
-    };
+    return { transactionHash: fundingResult.transactionId };
   }
 
   /**
-   * Create a new wallet with custom initial HBAR balance
-   * Alternative to createWallet() that allows specifying the initial balance
+   * Create a wallet with an initial balance
    */
-  async createWalletWithBalance(userId: string, initialBalance: string): Promise<WalletResponseDto> {
-    // Check if user already has a wallet
-    const existingWallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
+  async createWalletWithBalance(
+    userId: string,
+    initialBalance: string,
+  ): Promise<WalletResponseDto> {
+    const existingWallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (existingWallet) throw new ConflictException('User already has a wallet');
 
-    if (existingWallet) {
-      throw new ConflictException('User already has a wallet');
-    }
-
-    // Create Hedera account with custom initial balance
     const hederaAccount = await this.hederaService.initializeAccountWithBalance(initialBalance);
-
-    // Encrypt private key
     const encryptedPrivateKey = this.encryptionService.encrypt(hederaAccount.privateKey);
 
-    // Save wallet to database
     const wallet = await this.prisma.wallet.create({
       data: {
         userId,
@@ -192,14 +190,20 @@ export class WalletService {
       },
     });
 
-    // Get current balance to confirm
     const balance = await this.hederaService.getAccountBalance(hederaAccount.accountId);
+
+    const safeBalance = {
+      hbar: balance.hbar ?? '0',
+      zau: balance.zau ?? '0',
+      tokens: balance.tokens ?? {},
+      timestamp: new Date().toISOString(),
+    };
 
     return {
       id: wallet.id,
       hederaAccountId: wallet.hederaAccountId,
       publicKey: wallet.publicKey,
-      balance,
+      balance: safeBalance,
       createdAt: wallet.createdAt,
     };
   }

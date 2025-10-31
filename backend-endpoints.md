@@ -6,7 +6,7 @@ This document provides a comprehensive reference for all backend API endpoints i
 
 - **Base URL**: `http://localhost:3000/api/v1` (Development)
 - **API Documentation**: `http://localhost:3000/docs` (Swagger UI)
-- **Total Endpoints**: 49 endpoints across 7 main modules
+- **Total Endpoints**: 53 endpoints across 7 main modules
 - **Authentication**: JWT Bearer tokens (most endpoints)
 
 ## 📋 Endpoint Summary
@@ -15,11 +15,11 @@ This document provides a comprehensive reference for all backend API endpoints i
 |--------|----------------|------------------------|
 | Authentication | 7 | Partial |
 | Wallet | 9 | Yes |
-| Animals | 10 | Partial |
+| Animals | 13 | Partial |
 | Trades | 6 | Partial |
 | Collections | 6 | Yes (Admin/Manager) |
 | DID | 10 | Yes |
-| App | 1 | No |
+| App | 2 | No |
 
 ## 📚 Table of Contents
 
@@ -355,8 +355,7 @@ image: File // Optional - image file
 **Authentication**: Not required  
 **Query Parameters**:
 - `page` (number, optional): Page number (default: 1)
-- `limit` (number, optional): Items per page (default: 10)
-- `ownerId` (string, optional): Filter by owner ID  
+- `limit` (number, optional): Items per page (default: 10)  
 **Response** (200 OK):
 ```json
 {
@@ -375,7 +374,79 @@ image: File // Optional - image file
 }
 ```
 
-### 19. Get Animals Pending Review
+### 19. Get Listed Animals
+**Endpoint**: `GET /api/v1/animals/listed`  
+**Authentication**: Not required  
+**Query Parameters**:
+- `page` (number, optional): Page number (default: 1)
+- `limit` (number, optional): Items per page (default: 10)  
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "Listed animals retrieved successfully",
+  "data": [
+    // Array of animal objects that are listed for trade
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### 20. Get Unlisted Animals
+**Endpoint**: `GET /api/v1/animals/unlisted`  
+**Authentication**: Not required  
+**Query Parameters**:
+- `page` (number, optional): Page number (default: 1)
+- `limit` (number, optional): Items per page (default: 10)  
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "Unlisted animals retrieved successfully",
+  "data": [
+    // Array of animal objects that are not listed for trade
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 30,
+    "totalPages": 3
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### 21. Get My Animals
+**Endpoint**: `GET /api/v1/animals/my`  
+**Authentication**: Required (JWT)  
+**Query Parameters**:
+- `page` (number, optional): Page number (default: 1)
+- `limit` (number, optional): Items per page (default: 10)  
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "User animals retrieved successfully",
+  "data": [
+    // Array of animal objects owned by the authenticated user
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 5,
+    "totalPages": 1
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### 22. Get Animals Pending Review
 **Endpoint**: `GET /api/v1/animals/pending-review`  
 **Authentication**: Required (JWT) - Roles: ADMIN, HR_MANAGER  
 **Query Parameters**:
@@ -398,7 +469,7 @@ image: File // Optional - image file
 }
 ```
 
-### 20. Review Animal (Approve/Reject)
+### 23. Review Animal (Approve/Reject)
 **Endpoint**: `PUT /api/v1/animals/{id}/review`  
 **Authentication**: Required (JWT) - Roles: ADMIN, HR_MANAGER  
 **Path Parameters**:
@@ -412,7 +483,7 @@ image: File // Optional - image file
 ```
 **Response** (200 OK): Same as create animal response
 
-### 21. Mint Animal NFT
+### 24. Mint Animal NFT
 **Endpoint**: `POST /api/v1/animals/{id}/mint`  
 **Authentication**: Required (JWT)  
 **Description**: Mints NFT after expert approval  
@@ -420,14 +491,14 @@ image: File // Optional - image file
 - `id` (string): Animal ID  
 **Response** (201 Created): Same as create animal response (with tokenId and tokenSerialNumber populated)
 
-### 22. Get Animal by ID
+### 25. Get Animal by ID
 **Endpoint**: `GET /api/v1/animals/{id}`  
 **Authentication**: Not required  
 **Path Parameters**:
 - `id` (string): Animal ID  
 **Response** (200 OK): Same as create animal response
 
-### 23. Update Animal
+### 26. Update Animal
 **Endpoint**: `PATCH /api/v1/animals/{id}`  
 **Authentication**: Required (JWT)  
 **Path Parameters**:
@@ -442,7 +513,7 @@ image: File // Optional - image file
 ```
 **Response** (200 OK): Same as create animal response
 
-### 24. Delete Animal (Burn NFT)
+### 27. Delete Animal (Burn NFT)
 **Endpoint**: `DELETE /api/v1/animals/{id}`  
 **Authentication**: Required (JWT)  
 **Path Parameters**:
@@ -454,7 +525,7 @@ image: File // Optional - image file
 }
 ```
 
-### 25. Upload Animal Image
+### 28. Upload Animal Image
 **Endpoint**: `POST /api/v1/animals/{id}/upload-image`  
 **Authentication**: Required (JWT)  
 **Content-Type**: `multipart/form-data`  
@@ -466,7 +537,7 @@ image: File // Required - image file
 ```
 **Response** (200 OK): Same as create animal response
 
-### 26. Upload Vet Record
+### 29. Upload Vet Record
 **Endpoint**: `POST /api/v1/animals/{id}/upload-vet-record`  
 **Authentication**: Required (JWT)  
 **Content-Type**: `multipart/form-data`  
@@ -821,6 +892,19 @@ Endpoints for Decentralized Identifiers (DID) and credentials.
 Hello World!
 ```
 
+### 50. Detailed Health Check
+**Endpoint**: `GET /api/v1/health`  
+**Authentication**: Not required  
+**Response** (200 OK):
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "uptime": 12345.67,
+  "environment": "development"
+}
+```
+
 ---
 
 ## 📝 Data Types and Enums
@@ -1049,6 +1133,11 @@ SUPABASE_SERVICE_KEY="..."
 ## 📝 Changelog
 
 ### Latest Updates
+- **2024-01**: Added 3 new animal endpoints:
+  - GET `/animals/listed` - Get all listed animals
+  - GET `/animals/unlisted` - Get all unlisted animals  
+  - GET `/animals/my` - Get authenticated user's animals
+- Added health check endpoint (`GET /api/v1/health`)
 - Added animal review workflow (PENDING → EXPERT_APPROVED → MINTED)
 - Added endpoints for pending review animals
 - Added mint endpoint for approved animals

@@ -4,14 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../trading/data/models/trade_models.dart';
 import '../../../trading/providers/trading_provider.dart';
 import '../../../trading/data/repositories/trading_repository.dart';
-import '../../../trading/presentation/widgets/trade_confirmation_dialog.dart';
+import 'package:go_router/go_router.dart';
 import '../../../animals/data/models/animal_models.dart';
 import '../../../animals/providers/animals_provider.dart';
 import '../../../shared/presentation/widgets/custom_button.dart';
-import '../widgets/nft_detail_modal.dart';
 import '../widgets/list_nft_dialog.dart';
 
 class NftMarketplaceScreen extends ConsumerStatefulWidget {
@@ -111,18 +109,18 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
       },
       color: AppTheme.primaryColor,
       child: marketplaceState.when(
-        data: (trades) {
+        data: (animals) {
           // Apply simple client-side search/filter
-          final filtered = trades.where((t) {
+          final filtered = animals.where((a) {
             if (_activeFilter != 'All' &&
-                (t.status).toUpperCase() != _activeFilter.toUpperCase()) {
+                a.reviewStatus?.name.toUpperCase() != _activeFilter.toUpperCase()) {
               return false;
             }
             if (_searchQuery.isEmpty) return true;
             final q = _searchQuery.toLowerCase();
-            final name = (t.animal?.name ?? '').toLowerCase();
-            final species = (t.animal?.species ?? '').toLowerCase();
-            final breed = (t.animal?.breed ?? '').toLowerCase();
+            final name = a.name.toLowerCase();
+            final species = a.species.toLowerCase();
+            final breed = (a.breed ?? '').toLowerCase();
             return name.contains(q) || species.contains(q) || breed.contains(q);
           }).toList();
 
@@ -156,8 +154,8 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
                   ),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
-                    final trade = filtered[index];
-                    return _buildNFTCard(trade, isTablet, forSale: true);
+                    final animal = filtered[index];
+                    return _buildNFTCard(animal, isTablet, forSale: true);
                   },
                 ),
               ),
@@ -260,13 +258,13 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
     );
   }
 
-  Widget _buildNFTCard(Trade trade, bool isTablet, {bool forSale = false}) {
+  Widget _buildNFTCard(Animal animal, bool isTablet, {bool forSale = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = AppTheme.getCardBackground(context);
     final borderColor = AppTheme.getBorderColorFromContext(context);
 
     return InkWell(
-      onTap: () => _showNFTDetails(trade),
+      onTap: () => _showAnimalDetails(animal),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
@@ -292,7 +290,7 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(16)),
                     child: CachedNetworkImage(
-                      imageUrl: trade.animal?.imageUrl ?? '',
+                      imageUrl: animal.imageUrl ?? '',
                       fit: BoxFit.cover,
                       width: double.infinity,
                       placeholder: (context, url) => Container(
@@ -333,29 +331,30 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(trade.status),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        (trade.status).toUpperCase(),
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.6,
+                  if (animal.reviewStatus != null)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getAnimalStatusColor(animal.reviewStatus!),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          animal.reviewStatus!.name.toUpperCase(),
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.6,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -367,7 +366,7 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    trade.animal?.name ?? 'Unnamed',
+                    animal.name,
                     style: GoogleFonts.poppins(
                       fontSize: isTablet ? 16 : 15,
                       fontWeight: FontWeight.w700,
@@ -387,7 +386,7 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '${trade.animal?.species ?? 'Unknown'} • ${trade.animal?.breed ?? 'Mixed'}',
+                          '${animal.species}${animal.breed != null ? ' • ${animal.breed}' : ''}',
                           style: GoogleFonts.poppins(
                             fontSize: isTablet ? 12 : 11,
                             color: AppTheme.getMutedTextColor(context),
@@ -405,7 +404,9 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
                     children: [
                       Expanded(
                         child: Text(
-                          '${trade.price} ${trade.currency}',
+                          animal.aiPredictionValue != null
+                              ? '${animal.aiPredictionValue!.toStringAsFixed(2)} HBAR'
+                              : 'N/A',
                           style: GoogleFonts.poppins(
                             fontSize: isTablet ? 16 : 14,
                             fontWeight: FontWeight.w800,
@@ -591,35 +592,20 @@ class _NftMarketplaceScreenState extends ConsumerState<NftMarketplaceScreen>
     );
   }
 
-  void _showNFTDetails(Trade trade) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => NftDetailModal(
-        trade: trade,
-        onPurchase: () async {
-          Navigator.pop(context); // Close detail modal first
-          // Show purchase confirmation dialog
-          final success = await showDialog<bool>(
-            context: context,
-            builder: (context) => TradeConfirmationDialog(trade: trade),
-          );
-          
-          if (success == true && mounted) {
-            // Refresh marketplace and owned NFTs after purchase
-            ref.read(marketplaceProvider.notifier).refresh();
-            ref.read(myAnimalsProvider.notifier).getMyAnimals();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Purchase completed successfully!'),
-                backgroundColor: AppTheme.successColor,
-              ),
-            );
-          }
-        },
-      ),
-    );
+  void _showAnimalDetails(Animal animal) {
+    context.push('/animals/${animal.id}');
+  }
+
+  Color _getAnimalStatusColor(AnimalStatus status) {
+    switch (status) {
+      case AnimalStatus.expertApproved:
+      case AnimalStatus.listed:
+        return const Color(0xFF10B981);
+      case AnimalStatus.pendingExpertReview:
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF64748B);
+    }
   }
 
   void _showOwnedNFTOptions(Animal nft) {

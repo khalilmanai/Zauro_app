@@ -13,7 +13,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../wallet/data/models/wallet_models.dart';
 import '../../../wallet/providers/wallet_provider.dart';
 import '../../../trading/providers/trading_provider.dart';
-import '../../../trading/data/models/trade_models.dart';
+import '../../../animals/data/models/animal_models.dart';
 import '../widgets/dashboard_search_modal.dart';
 import '../widgets/dashboard_filter_modal.dart';
 
@@ -1129,7 +1129,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   Widget _buildMarketplaceSection(BuildContext context, WidgetRef ref,
-      AsyncValue<List<Trade>> marketplaceState) {
+      AsyncValue<List<Animal>> marketplaceState) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
@@ -1338,7 +1338,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ),
         const SizedBox(height: 20),
         marketplaceState.when(
-          data: (trades) => _buildMarketplaceGrid(context, trades),
+          data: (animals) => _buildMarketplaceGrid(context, animals),
           loading: () => _buildMarketplaceLoading(),
           error: (error, stackTrace) => _buildMarketplaceError(context),
         ),
@@ -1346,8 +1346,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  Widget _buildMarketplaceGrid(BuildContext context, List<Trade> trades) {
-    if (trades.isEmpty) {
+  Widget _buildMarketplaceGrid(BuildContext context, List<Animal> animals) {
+    if (animals.isEmpty) {
       return _buildEmptyMarketplace(context);
     }
 
@@ -1374,20 +1374,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ),
         childAspectRatio: childAspectRatio,
       ),
-      itemCount: trades.length > 8 ? 8 : trades.length,
+      itemCount: animals.length > 8 ? 8 : animals.length,
       itemBuilder: (context, index) {
-        final trade = trades[index];
-        return _buildAnimalCard(context, trade, index);
+        final animal = animals[index];
+        return _buildAnimalCard(context, animal, index);
       },
     );
   }
 
-  Widget _buildAnimalCard(BuildContext context, Trade trade, int index) {
+  Widget _buildAnimalCard(BuildContext context, Animal animal, int index) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
-        context.push('/marketplace/trade/${trade.id}');
+        context.push('/animals/${animal.id}');
         HapticFeedback.lightImpact();
       },
       child: Container(
@@ -1424,13 +1424,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         top: Radius.circular(24),
                       ),
                     ),
-                    child: trade.animal?.imageUrl != null
+                    child: animal.imageUrl != null
                         ? ClipRRect(
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(24),
                             ),
                             child: Image.network(
-                              trade.animal!.imageUrl!,
+                              animal.imageUrl!,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
                                   _buildPlaceholderImage(isDark),
@@ -1462,37 +1462,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     ),
                   ),
                   // Status badge
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(trade.status),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                _getStatusColor(trade.status).withOpacity(0.5),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  if (animal.reviewStatus != null)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getAnimalStatusColor(animal.reviewStatus!),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  _getAnimalStatusColor(animal.reviewStatus!).withOpacity(0.5),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          animal.reviewStatus!.name.toUpperCase(),
+                          style: GoogleFonts.poppins(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.8,
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        trade.status.toUpperCase(),
-                        style: GoogleFonts.poppins(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.8,
                         ),
                       ),
                     ),
-                  ),
                   // Favorite button
                   Positioned(
                     top: 12,
@@ -1529,19 +1530,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             Expanded(
               flex: 4,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                         Row(
                           children: [
                             Expanded(
                               child: Text(
-                                trade.animal?.name ?? 'Unknown Animal',
+                                animal.name,
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
@@ -1597,7 +1601,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                  '${trade.animal?.species ?? 'Unknown'} • ${trade.animal?.breed ?? 'Mixed'}',
+                                  '${animal.species}${animal.breed != null ? ' • ${animal.breed}' : ''}',
                                   style: GoogleFonts.poppins(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -1615,6 +1619,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         ),
                       ],
                     ),
+                  ),
                     // Price section
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1646,7 +1651,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${trade.price} ${trade.currency}',
+                                  animal.aiPredictionValue != null
+                                      ? '${animal.aiPredictionValue!.toStringAsFixed(2)} HBAR'
+                                      : 'N/A',
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
@@ -1950,6 +1957,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       case 'sold':
         return const Color(0xFF64748B);
       case 'pending':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  Color _getAnimalStatusColor(AnimalStatus status) {
+    switch (status) {
+      case AnimalStatus.expertApproved:
+      case AnimalStatus.listed:
+        return const Color(0xFF10B981);
+      case AnimalStatus.pendingExpertReview:
         return const Color(0xFFF59E0B);
       default:
         return const Color(0xFF64748B);

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zauro_marketplace/features/animals/data/models/animal_models.dart';
+import 'package:zauro_marketplace/features/admin/data/models/collection_models.dart';
+import 'package:zauro_marketplace/features/did/data/models/did_models.dart';
 import '../../../../core/network/api_client.dart';
 
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {
@@ -126,5 +128,89 @@ class AdminRepository {
 
   Future<void> cancelTrade(String id) async {
     await _api.cancelTrade(id);
+  }
+
+  // --- Collections management ---
+  Future<List<Map<String, dynamic>>> getAllCollections() async {
+    try {
+      final res = await _api.listCollections();
+      final list = res.data ?? [];
+      return list.map((c) => {
+        'id': c.id,
+        'tokenId': c.tokenId,
+        'name': c.name,
+        'symbol': c.symbol,
+        'memo': c.memo,
+        'maxSupply': c.maxSupply,
+        'currentSupply': c.currentSupply,
+        'isDefault': c.isDefault,
+        'isActive': c.isActive,
+        'createdAt': c.createdAt.toIso8601String(),
+        'updatedAt': c.updatedAt.toIso8601String(),
+      }).toList();
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<void> createCollection(Map<String, dynamic> data) async {
+    final request = CreateCollectionRequest(
+      name: data['name'] as String,
+      symbol: data['symbol'] as String,
+      memo: data['memo'] as String?,
+      maxSupply: data['maxSupply'] as int?,
+      isDefault: data['isDefault'] as bool?,
+    );
+    await _api.createCollection(request);
+  }
+
+  Future<void> setCollectionAsDefault(String id) async {
+    await _api.setCollectionAsDefault(id);
+  }
+
+  Future<void> disableCollection(String id) async {
+    await _api.disableCollection(id);
+  }
+
+  Future<void> rotateCollectionIfFull({String? namePrefix, String? symbolPrefix, String? memo}) async {
+    final request = RotateCollectionRequest(
+      namePrefix: namePrefix,
+      symbolPrefix: symbolPrefix,
+      memo: memo,
+    );
+    await _api.rotateCollectionsIfFull(request);
+  }
+
+  // --- DIDs and Credentials management ---
+  Future<List<Map<String, dynamic>>> getAllCredentials() async {
+    try {
+      final res = await _api.getMyCredentials();
+      final list = res.data?.credentials ?? [];
+      return list.map((c) => {
+        'id': c.id ?? '',
+        'type': c.type?.last ?? 'Unknown',
+        'issuer': c.issuer ?? '',
+        'issuanceDate': c.issuanceDate ?? '',
+        'expirationDate': c.expirationDate ?? '',
+        'subject': c.credentialSubject?.id ?? '',
+        'data': c.credentialSubject?.data,
+      }).toList();
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<void> issueReputationCredential(Map<String, dynamic> data) async {
+    final request = IssueReputationCredentialRequest(
+      score: data['score'] as int,
+      totalTrades: data['totalTrades'] as int,
+      successfulTrades: data['successfulTrades'] as int,
+      averageRating: (data['averageRating'] as num).toDouble(),
+    );
+    await _api.issueReputationCredential(request);
+  }
+
+  Future<void> revokeCredential(String credentialId) async {
+    await _api.revokeCredential(credentialId);
   }
 }

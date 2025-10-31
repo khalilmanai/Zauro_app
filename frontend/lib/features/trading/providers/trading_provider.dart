@@ -250,20 +250,14 @@ class MarketplaceNotifier extends StateNotifier<AsyncValue<List<Animal>>> {
 
   MarketplaceNotifier(this._repository) : super(const AsyncValue.data([]));
 
-  /// Get available animals (marketplace) - uses /api/v1/animals endpoint
+  /// Get available animals (marketplace) - uses /api/v1/animals/listed endpoint
   Future<void> getAvailableTrades({int page = 1, int limit = 10}) async {
     state = const AsyncValue.loading();
     try {
-      final response = await _repository.getAnimals(page: page, limit: limit);
-      // Filter to only show listed animals (animals that are available for trade)
-      final availableAnimals = response.data.where((animal) => 
-        animal.isListed || 
-        animal.reviewStatus == AnimalStatus.expertApproved ||
-        animal.reviewStatus == AnimalStatus.listed
-      ).toList();
+      final response = await _repository.getListedAnimals(page: page, limit: limit);
       // ignore: avoid_print
-      print('✅ marketplaceProvider.getAvailableTrades -> ${availableAnimals.length} animals');
-      state = AsyncValue.data(availableAnimals);
+      print('✅ marketplaceProvider.getAvailableTrades -> ${response.data.length} animals');
+      state = AsyncValue.data(response.data);
     } catch (error, stackTrace) {
       // ignore: avoid_print
       print('❌ marketplaceProvider.getAvailableTrades error: $error');
