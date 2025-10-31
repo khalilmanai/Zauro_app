@@ -100,10 +100,18 @@ export class AnimalsService {
       }
     }
 
+    // Ensure isListed is a boolean (transform in DTO should handle this, but extra safety check)
+    const isListed = createAnimalDto.isListed !== undefined 
+      ? (typeof createAnimalDto.isListed === 'boolean' 
+          ? createAnimalDto.isListed 
+          : String(createAnimalDto.isListed).toLowerCase() === 'true')
+      : false;
+
     // Create animal record
     const animal = await this.prisma.animal.create({
       data: {
         ...createAnimalDto,
+        isListed,
         ownerId: userId,
         imageUrl,
         vetRecordUrl,
@@ -317,7 +325,16 @@ export class AnimalsService {
     };
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{
+  async findAll(
+    paginationDto: PaginationDto,
+    filters?: {
+      minAge?: number;
+      maxAge?: number;
+      sex?: 'MALE' | 'FEMALE';
+      minPrice?: number;
+      maxPrice?: number;
+    },
+  ): Promise<{
     animals: AnimalResponseDto[];
     total: number;
     page: number;
@@ -327,10 +344,27 @@ export class AnimalsService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
+    const where: any = {};
 
+    if (filters?.sex) {
+      where.sex = filters.sex;
+    }
+
+    if (filters?.minAge !== undefined || filters?.maxAge !== undefined) {
+      where.age = {};
+      if (filters.minAge !== undefined) where.age.gte = filters.minAge;
+      if (filters.maxAge !== undefined) where.age.lte = filters.maxAge;
+    }
+
+    if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+      where.aiPredictionValue = {};
+      if (filters.minPrice !== undefined) where.aiPredictionValue.gte = filters.minPrice;
+      if (filters.maxPrice !== undefined) where.aiPredictionValue.lte = filters.maxPrice;
+    }
 
     const [animals, total] = await Promise.all([
       this.prisma.animal.findMany({
+        where,
         skip,
         take: limit,
         include: {
@@ -345,7 +379,7 @@ export class AnimalsService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.animal.count(),
+      this.prisma.animal.count({ where }),
     ]);
 
     return {
@@ -357,7 +391,9 @@ export class AnimalsService {
     };
   }
 
-  async findAllByOwnerId(paginationDto: PaginationDto, ownerId: string): Promise<{
+  async findAllListed(
+    paginationDto: PaginationDto,
+  ): Promise<{
     animals: AnimalResponseDto[];
     total: number;
     page: number;
@@ -367,10 +403,11 @@ export class AnimalsService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
+    const where = { isListed: true } as const;
 
     const [animals, total] = await Promise.all([
       this.prisma.animal.findMany({
-        where: { ownerId },
+        where,
         skip,
         take: limit,
         include: {
@@ -385,7 +422,117 @@ export class AnimalsService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.animal.count({ where: { ownerId } }),
+      this.prisma.animal.count({ where }),
+    ]);
+
+    return {
+      animals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findAllUnlisted(
+    paginationDto: PaginationDto,
+  ): Promise<{
+    animals: AnimalResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const where = { isListed: false } as const;
+
+    const [animals, total] = await Promise.all([
+      this.prisma.animal.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.animal.count({ where }),
+    ]);
+
+    return {
+      animals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findAllByOwnerId(
+    paginationDto: PaginationDto,
+    ownerId: string,
+    filters?: {
+      minAge?: number;
+      maxAge?: number;
+      sex?: 'MALE' | 'FEMALE';
+      minPrice?: number;
+      maxPrice?: number;
+    },
+  ): Promise<{
+    animals: AnimalResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const where: any = { ownerId };
+
+    if (filters?.sex) {
+      where.sex = filters.sex;
+    }
+
+    if (filters?.minAge !== undefined || filters?.maxAge !== undefined) {
+      where.age = {};
+      if (filters.minAge !== undefined) where.age.gte = filters.minAge;
+      if (filters.maxAge !== undefined) where.age.lte = filters.maxAge;
+    }
+
+    if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+      where.aiPredictionValue = {};
+      if (filters.minPrice !== undefined) where.aiPredictionValue.gte = filters.minPrice;
+      if (filters.maxPrice !== undefined) where.aiPredictionValue.lte = filters.maxPrice;
+    }
+
+    const [animals, total] = await Promise.all([
+      this.prisma.animal.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.animal.count({ where }),
     ]);
 
     return {
@@ -432,9 +579,17 @@ export class AnimalsService {
       throw new ForbiddenException('You can only update your own animals');
     }
 
+    // When an animal is updated, it must be unlisted and go back to pending expert review
     const updatedAnimal = await this.prisma.animal.update({
       where: { id },
-      data: updateAnimalDto,
+      data: {
+        ...updateAnimalDto,
+        isListed: false, // Always unlist on update
+        status: 'PENDING_EXPERT_REVIEW', // Reset to pending review
+        expertReviewedBy: null, // Clear previous review
+        expertReviewComment: null,
+        expertReviewDate: null,
+      },
       include: {
         owner: {
           select: {
