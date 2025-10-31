@@ -6,6 +6,9 @@ from PIL import Image
 import base64
 import io
 import torch
+import os
+import tempfile
+import urllib.parse
 from nft_value_estimator import NFTValueEstimator
 
 app = Flask(__name__)
@@ -29,6 +32,33 @@ model.to(device)
 
 # Initialize NFT Value Estimator
 nft_estimator = NFTValueEstimator()
+
+
+def download_image_if_url(image_path):
+    """
+    Download image from URL if path is a URL, otherwise return local path.
+    Returns tuple: (local_path, should_cleanup)
+    """
+    # Check if it's a URL
+    parsed = urllib.parse.urlparse(image_path)
+    if parsed.scheme in ('http', 'https'):
+        # It's a URL, download it
+        try:
+            response = requests.get(image_path, timeout=30)
+            response.raise_for_status()
+            
+            # Create temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+            temp_file.write(response.content)
+            temp_file.close()
+            
+            return temp_file.name, True
+        except Exception as e:
+            print(f"❌ Error downloading image from URL {image_path}: {e}")
+            raise Exception(f"Failed to download image: {str(e)}")
+    else:
+        # It's a local path
+        return image_path, False
 
 
 def format_input(data):
@@ -116,7 +146,7 @@ def analyze_cattle(image_path, animal_id=None, vet_info=None):
     Comprehensive cattle analysis from image
     
     Args:
-        image_path: Path to cattle image
+        image_path: Path to cattle image or URL
         animal_id: Optional animal identifier
         vet_info: Optional dictionary with vet certification data
             Expected keys: age, breed, sex, health, vaccinations, medical_history
@@ -130,67 +160,82 @@ def analyze_cattle(image_path, animal_id=None, vet_info=None):
     """
     print("🔍 Analyzing image:", image_path)
     
-    # Step 1: Age & Sex Detection
-    sex = detect_sex_roboflow(image_path)
-    age = detect_age_roboflow(image_path)
-    print(f"📌 Age Detected: {age}")
-    print(f"📌 Sex Detected: {sex}")
+    # Download image if it's a URL
+    local_image_path = None
+    should_cleanup = False
+    try:
+        local_image_path, should_cleanup = download_image_if_url(image_path)
+        print(f"📥 Image path (local): {local_image_path}")
+        
+        # Step 1: Age & Sex Detection
+        sex = detect_sex_roboflow(local_image_path)
+        age = detect_age_roboflow(local_image_path)
+        print(f"📌 Age Detected: {age}")
+        print(f"📌 Sex Detected: {sex}")
 
-    # Step 2: Disease Detection
-    diseases = detect_disease_roboflow(image_path)
-    print(f"💉 Detected Diseases: {diseases}")
-    
-    # Normalize diseases to list format
-    if isinstance(diseases, str):
-        diseases = [diseases]
-    elif not isinstance(diseases, list):
-        diseases = []
+        # Step 2: Disease Detection
+        diseases = detect_disease_roboflow(local_image_path)
+        print(f"💉 Detected Diseases: {diseases}")
+        
+        # Normalize diseases to list format
+        if isinstance(diseases, str):
+            diseases = [diseases]
+        elif not isinstance(diseases, list):
+            diseases = []
 
-    # Step 3: Breed Detection (with fallback)
-    breed = detect_breed_from_characteristics(sex, age)
-    print(f"🐂 Breed Detected: {breed}")
-    
-    # Step 4: Merge with vet information if provided
-    if vet_info:
-        print("📋 Merging with vet certification data...")
-        # Override detected values with vet certification if more reliable
-        if vet_info.get("age"):
-            age = vet_info["age"]
-        if vet_info.get("breed"):
-            breed = vet_info["breed"]
-        if vet_info.get("sex"):
-            sex = vet_info["sex"]
-        if vet_info.get("health"):
-            # Merge health information
-            vet_health = vet_info["health"] if isinstance(vet_info["health"], list) else [vet_info["health"]]
-            diseases = list(set(diseases + vet_health))
-    
-    # Determine health status
-    if not diseases or "No disease detected" in diseases or diseases == []:
-        health_status = "HEALTHY"
-        health_details = []
-    else:
-        health_status = "CONCERN"
-        health_details = diseases
+        # Step 3: Breed Detection (with fallback)
+        breed = detect_breed_from_characteristics(sex, age)
+        print(f"🐂 Breed Detected: {breed}")
+        
+        # Step 4: Merge with vet information if provided
+        if vet_info:
+            print("📋 Merging with vet certification data...")
+            # Override detected values with vet certification if more reliable
+            if vet_info.get("age"):
+                age = vet_info["age"]
+            if vet_info.get("breed"):
+                breed = vet_info["breed"]
+            if vet_info.get("sex"):
+                sex = vet_info["sex"]
+            if vet_info.get("health"):
+                # Merge health information
+                vet_health = vet_info["health"] if isinstance(vet_info["health"], list) else [vet_info["health"]]
+                diseases = list(set(diseases + vet_health))
+        
+        # Determine health status
+        if not diseases or "No disease detected" in diseases or diseases == []:
+            health_status = "HEALTHY"
+            health_details = []
+        else:
+            health_status = "CONCERN"
+            health_details = diseases
 
-    return {
-        "animal_id": animal_id or f"ZAURO-{hash(image_path) % 10000}",
-        "detected_attributes": {
-            "sex": sex,
-            "age": age,
-            "breed": breed,
-            "health_status": health_status,
-            "health_details": health_details
-        },
-        "ai_confidence": {
-            "sex_confidence": 0.85,  # Mock confidence score
-            "age_confidence": 0.80,
-            "health_confidence": 0.90 if diseases else 0.75,
-            "breed_confidence": 0.60  # Lower confidence as it's a fallback
-        },
-        "vet_integration": vet_info is not None,
-        "notes": "Analysis includes AI detection and optional vet certification data"
-    }
+        return {
+            "animal_id": animal_id or f"ZAURO-{hash(image_path) % 10000}",
+            "detected_attributes": {
+                "sex": sex,
+                "age": age,
+                "breed": breed,
+                "health_status": health_status,
+                "health_details": health_details
+            },
+            "ai_confidence": {
+                "sex_confidence": 0.85,  # Mock confidence score
+                "age_confidence": 0.80,
+                "health_confidence": 0.90 if diseases else 0.75,
+                "breed_confidence": 0.60  # Lower confidence as it's a fallback
+            },
+            "vet_integration": vet_info is not None,
+            "notes": "Analysis includes AI detection and optional vet certification data"
+        }
+    finally:
+        # Clean up temporary file if we downloaded it
+        if should_cleanup and local_image_path and os.path.exists(local_image_path):
+            try:
+                os.unlink(local_image_path)
+                print(f"🧹 Cleaned up temporary file: {local_image_path}")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not delete temporary file {local_image_path}: {e}")
 
 def detect_age_roboflow(image_path):
     url = f"https://detect.roboflow.com/{ROBOFLOW_AGE_PROJECT}/{ROBOFLOW_MODEL_VERSION}?api_key={ROBOFLOW_API_KEY}&confidence=0.1"
@@ -231,7 +276,13 @@ def predict():
     """
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+            
         image_path = data.get("image_path")
+        if not image_path:
+            return jsonify({"error": "image_path is required"}), 400
+            
         animal_id = data.get("animal_id")
         vet_info = data.get("vet_info")
         
@@ -260,6 +311,10 @@ def predict():
             "vet_integration": results["vet_integration"]
         })
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Error in /predict endpoint: {str(e)}")
+        print(f"📋 Traceback: {error_trace}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -299,9 +354,17 @@ def analyze():
     """
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+            
         image_path = data.get("image_path")
+        if not image_path:
+            return jsonify({"error": "image_path is required"}), 400
+            
         animal_id = data.get("animal_id")
         vet_info = data.get("vet_info")
+        
+        print(f"📥 Received analysis request for image: {image_path}")
         
         # Analyze cattle from image
         analysis_result = analyze_cattle(image_path, animal_id, vet_info)
@@ -315,13 +378,13 @@ def analyze():
         }
         market_price = predict_price(model_input)
         
-        # Generate NFT valuation
+        # Generate NFT valuation (use original image_path, not local path)
         valuation_report = nft_estimator.get_valuation_report(cattle_data, image_path)
         
         # Combine results
         return jsonify({
             "animal_id": analysis_result["animal_id"],
-            "animal_analysis": cattle_data,
+            "detected_attributes": cattle_data,  # Changed from "animal_analysis" to "detected_attributes"
             "ai_confidence": analysis_result["ai_confidence"],
             "vet_integration": analysis_result["vet_integration"],
             "market_price": market_price,
@@ -329,7 +392,11 @@ def analyze():
             "notes": analysis_result["notes"]
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Error in /analyze endpoint: {str(e)}")
+        print(f"📋 Traceback: {error_trace}")
+        return jsonify({"error": str(e), "traceback": error_trace}), 500
 
 
 @app.route("/health", methods=["GET"])
