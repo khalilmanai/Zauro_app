@@ -67,6 +67,234 @@ The **Zauro Marketplace Backend** is a sophisticated blockchain-based animal tra
 
 ---
 
+## 🚀 Getting Started
+
+### Prerequisites
+
+Before starting the application, ensure you have the following installed:
+
+- **Node.js**: Version 18 or higher ([Download](https://nodejs.org/))
+- **npm** or **yarn**: Package manager (comes with Node.js)
+- **PostgreSQL**: Version 13 or higher ([Download](https://www.postgresql.org/download/))
+- **Docker & Docker Compose** (Optional, for containerized deployment) ([Download](https://www.docker.com/))
+
+### Quick Start with Docker (Recommended)
+
+The easiest way to start the entire application stack:
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd Zauro_app
+   ```
+
+2. **Create environment file**:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Configure environment variables**:
+   Edit `.env` file with your configuration (see [Environment Variables](#-technical-configuration) section below)
+
+4. **Start all services**:
+   ```bash
+   docker compose up --build
+   ```
+   
+   This starts:
+   - PostgreSQL database (port 5432)
+   - Backend API (port 3000)
+   - PgAdmin (port 5050)
+   - Animal Detection ML Service (port 5000)
+
+5. **Verify services are running**:
+   ```bash
+   # Check backend health
+   curl http://localhost:3000/api/v1/health
+   
+   # Check ML service health
+   curl http://localhost:5000/health
+   
+   # Access API documentation
+   # Open browser: http://localhost:3000/api/docs
+   ```
+
+### Manual Installation (Development)
+
+For local development without Docker:
+
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Set up PostgreSQL database**:
+   ```bash
+   # Create database
+   createdb zauro_db
+   
+   # Or using PostgreSQL client
+   psql -U postgres -c "CREATE DATABASE zauro_db;"
+   ```
+
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` and set:
+   ```bash
+   DATABASE_URL="postgresql://username:password@localhost:5432/zauro_db"
+   JWT_SECRET="your-super-secret-jwt-key-minimum-32-characters"
+   JWT_REFRESH_SECRET="your-super-secret-refresh-jwt-key"
+   # ... other required variables
+   ```
+
+4. **Run database migrations**:
+   ```bash
+   npm run db:migrate
+   ```
+
+5. **Seed database (optional)**:
+   ```bash
+   npm run db:seed
+   ```
+
+6. **Start the backend server**:
+   ```bash
+   # Development mode (with hot reload)
+   npm run start:dev
+   
+   # Production mode
+   npm run build
+   npm run start:prod
+   ```
+
+7. **Start Animal Detection ML Service** (in separate terminal):
+   ```bash
+   cd "animal detection"
+   pip install -r requirements.txt
+   python api.py
+   ```
+   
+   Or with Docker:
+   ```bash
+   cd "animal detection"
+   docker compose up
+   ```
+
+### Starting Individual Services
+
+#### Backend API Only
+```bash
+# Development
+npm run start:dev
+
+# Production
+npm run build && npm run start:prod
+```
+
+#### Database Only (Docker)
+```bash
+docker compose up db
+```
+
+#### Animal Detection Service Only
+```bash
+# Using Docker
+docker compose up animal-detection
+
+# Manual
+cd "animal detection"
+pip install -r requirements.txt
+python api.py
+```
+
+### Verifying Installation
+
+1. **Check Backend API**:
+   ```bash
+   curl http://localhost:3000/api/v1/health
+   ```
+   Should return: `{"status": "ok"}`
+
+2. **Check API Documentation**:
+   Open browser to: `http://localhost:3000/api/docs`
+   - You should see Swagger UI with all API endpoints
+
+3. **Check Animal Detection Service**:
+   ```bash
+   curl http://localhost:5000/health
+   ```
+   Should return: `{"status": "healthy", "service": "animal-detection"}`
+
+4. **Test Database Connection**:
+   ```bash
+   npm run db:studio
+   ```
+   Opens Prisma Studio at `http://localhost:5555`
+
+### Common Issues & Solutions
+
+**Issue: Port already in use**
+```bash
+# Find and kill process using port 3000
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -ti:3000 | xargs kill -9
+```
+
+**Issue: Database connection failed**
+- Verify PostgreSQL is running: `pg_isready`
+- Check DATABASE_URL in `.env` matches your PostgreSQL credentials
+- Ensure database exists: `psql -U postgres -l`
+
+**Issue: Animal Detection service not responding**
+- First start downloads ML models (~5-10 minutes) - wait for completion
+- Check logs: `docker compose logs animal-detection`
+- Verify Python dependencies: `pip list`
+
+**Issue: Migration errors**
+```bash
+# Reset database (⚠️ deletes all data)
+npm run db:reset
+
+# Or recreate database
+dropdb zauro_db
+createdb zauro_db
+npm run db:migrate
+```
+
+### Next Steps
+
+1. **Create your first user**:
+   ```bash
+   POST http://localhost:3000/api/v1/auth/register
+   {
+     "email": "user@example.com",
+     "password": "SecurePass123!",
+     "firstName": "John",
+     "lastName": "Doe"
+   }
+   ```
+
+2. **Explore the API**:
+   - Visit `http://localhost:3000/api/docs` for interactive API documentation
+   - Authenticate with your credentials
+   - Try creating animals and trades
+
+3. **View Database**:
+   ```bash
+   npm run db:studio
+   ```
+
+For production deployment, see the [Deployment Options](#-deployment-options) section.
+
+---
+
 ## 🗄️ Database Schema & Models
 
 ### Core Entities
@@ -890,26 +1118,28 @@ MAILERSEND_FROM="noreply@yourdomain.com"
 - **Status**: Current and Active
 - **New Features**: Hedera DID Integration, Free Deployment Options
 
-## Docker
+## 🐳 Docker Deployment
+
+> **Note**: For complete setup instructions, see the [Getting Started](#-getting-started) section above.
 
 ### Quick Start
 
-- **Start all services** (PostgreSQL + Backend + PgAdmin + Animal Detection):
-  ```bash
-  docker compose up --build
-  ```
+**Start all services** (PostgreSQL + Backend + PgAdmin + Animal Detection):
+```bash
+docker compose up --build
+```
 
-- **Start specific services**:
-  ```bash
-  # Backend + Database only
-  docker compose up db backend pgadmin
-  
-  # Animal Detection service only
-  docker compose up animal-detection
-  
-  # All services
-  docker compose up -d  # Run in background
-  ```
+**Start specific services**:
+```bash
+# Backend + Database only
+docker compose up db backend pgadmin
+
+# Animal Detection service only
+docker compose up animal-detection
+
+# All services in background (detached mode)
+docker compose up -d
+```
 
 ### Services
 
